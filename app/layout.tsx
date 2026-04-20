@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import { Playfair_Display, Manrope, Geist } from "next/font/google";
 import "./globals.css";
