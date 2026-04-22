@@ -28,6 +28,7 @@ import {
 
 export function ProfileDropdown() {
   const { data: session } = useSession();
+  
   const { isLoggedIn, role, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const closeTimeoutRef = useRef<number | null>(null);
