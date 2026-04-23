@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { NotificationModal } from "@/components/ui/notification-modal";
 import { toast } from "sonner";
 
 type AuthRole = "user" | "admin";
@@ -47,7 +48,6 @@ function formatNameSegment(segment: string) {
   if (!segment) {
     return "";
   }
-
   return segment.charAt(0).toUpperCase() + segment.slice(1);
 }
 
@@ -149,53 +149,65 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>(getInitialAuthState);
+  const [modal, setModal] = useState<{ open: boolean; message: string }>({ open: false, message: "" });
+
+  const showModal = useCallback((message: string) => {
+    setModal({ open: true, message });
+  }, []);
+  const closeModal = useCallback(() => {
+    setModal((m) => ({ ...m, open: false }));
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState));
   }, [authState]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        ...authState,
-        login: (email) => {
-          const role = detectRoleFromEmail(email);
-          setAuthState({
-            isLoggedIn: true,
-            role,
-            email,
-            profile: buildDefaultProfile(email),
-          });
-          toast.success("Logged in successfully!");
-        },
-        logout: () => {
-          setAuthState(defaultAuthState);
-          toast("Logged out successfully.");
-        },
-        updateProfile: (profile) => {
-          setAuthState((currentState) => {
-            if (!currentState.profile) {
-              return currentState;
-            }
+    <>
+      <NotificationModal open={modal.open} message={modal.message} onClose={closeModal} />
+      <AuthContext.Provider
+        value={{
+          ...authState,
+          login: (email) => {
+            const role = detectRoleFromEmail(email);
+            setAuthState({
+              isLoggedIn: true,
+              role,
+              email,
+              profile: buildDefaultProfile(email),
+            });
+            toast.success("Logged in successfully!");
+            showModal("Logged in successfully!");
+          },
+          logout: () => {
+            setAuthState(defaultAuthState);
+            toast.success("Logged out successfully.");
+            showModal("Logged out successfully.");
+          },
+          updateProfile: (profile) => {
+            setAuthState((currentState) => {
+              if (!currentState.profile) {
+                return currentState;
+              }
 
-            return {
-              ...currentState,
-              profile: {
-                ...currentState.profile,
-                ...profile,
-                email: currentState.profile.email,
-                memberSince: currentState.profile.memberSince,
-              },
-            };
-          });
-        },
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+              return {
+                ...currentState,
+                profile: {
+                  ...currentState.profile,
+                  ...profile,
+                  email: currentState.profile.email,
+                  memberSince: currentState.profile.memberSince,
+                },
+              };
+            });
+          },
+        }}
+      >
+        {children}
+      </AuthContext.Provider>
+    </>
   );
 }
-
 export function useAuth() {
   const context = useContext(AuthContext);
 

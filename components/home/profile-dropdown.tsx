@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
  import { signOut } from "next-auth/react";
  import { useSession } from "next-auth/react";
-import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/auth-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,12 +26,38 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+type User = {
+  role?: string;
+  [key: string]: any;
+};
+type Session = {
+  user?: User;
+  [key: string]: any;
+};
+
 export function ProfileDropdown() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession() as { data: Session | null; status: "authenticated" | "unauthenticated" | "loading" };
   
-  const { isLoggedIn, role, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const closeTimeoutRef = useRef<number | null>(null);
+ 
+  let isLoggedIn = status === "authenticated";
+  let name = session?.user?.name || "";
+  let email = session?.user?.email || "";
+  let role = session?.user?.role || "";
+  let auth = null;
+  try {
+    auth = useAuth();
+    if (auth && auth.isLoggedIn) {
+      isLoggedIn = true;
+      name = auth.profile?.fullName || "";
+      email = auth.profile?.email || "";
+      role = (auth.role as string | undefined) || role;
+      console.log("Auth context found:", { name, email, role });
+    }
+  } catch {}
+  if (status === "loading") return null;
+
 
   const clearCloseTimeout = () => {
     if (closeTimeoutRef.current !== null) {
@@ -53,7 +79,6 @@ export function ProfileDropdown() {
   };
 
   const closeMenu = () => setOpen(false);
-
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
@@ -73,9 +98,26 @@ export function ProfileDropdown() {
         onMouseEnter={handleOpen}
         onMouseLeave={handleClose}
       >
-        <DropdownMenuLabel className="text-[var(--muted-foreground)]">
-          {isLoggedIn ? `${role === "admin" ? "Admin" : "User"} Account` : "My Account"}
+        <DropdownMenuLabel className="text-[var(--muted-foreground)] flex flex-col">
+          {isLoggedIn ? (
+            <>
+              <span className="font-semibold">{name || (role === "ADMIN" ? "Admin" : "User")}</span>
+              {email && <span className="text-xs opacity-80">{email}</span>}
+            </>
+          ) : (
+            "My Account"
+          )}
         </DropdownMenuLabel>
+        <DropdownMenuLabel>
+  {isLoggedIn ? (
+    <>
+      <span>{name}</span>
+      {email && <span>{email}</span>}
+    </>
+  ) : (
+    "My Account"
+  )}
+</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           {isLoggedIn ? (
@@ -107,12 +149,12 @@ export function ProfileDropdown() {
         {isLoggedIn ? (
               <DropdownMenuItem
       variant="destructive"
-      onSelect={async () => {
+     onSelect={async () => {
         setOpen(false);
         await signOut({
           callbackUrl: "/login",
         });
-     }}
+      }}
 >
   <LogOut className="size-4" />
   Logout
@@ -122,7 +164,11 @@ export function ProfileDropdown() {
             <Link href="/login" onClick={closeMenu}>
               <LogIn className="size-4" />
               Login
-              {role === "admin" ? <ShieldCheck className="ml-auto size-4" /> : <UserRound className="ml-auto size-4" />}
+              {isLoggedIn && (
+  role === "ADMIN"
+    ? <ShieldCheck className="ml-auto size-4" />
+    : <UserRound className="ml-auto size-4" />
+)}
             </Link>
           </DropdownMenuItem>
         )}
