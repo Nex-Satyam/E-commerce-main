@@ -149,6 +149,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>(getInitialAuthState);
+
   const [modal, setModal] = useState<{ open: boolean; message: string }>({ open: false, message: "" });
 
   const showModal = useCallback((message: string) => {
@@ -163,6 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [authState]);
 
   return (
+
     <>
       <NotificationModal open={modal.open} message={modal.message} onClose={closeModal} />
       <AuthContext.Provider

@@ -36,6 +36,7 @@ export function LoginView() {
 
           <div className="auth-role-pill">Role auto-detected on login</div>
 
+
           <Button
             type="button"
             variant="outline"

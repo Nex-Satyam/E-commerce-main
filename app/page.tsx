@@ -1,3 +1,4 @@
+
 import { CategoriesSection } from "@/components/home/categories-section";
 import { HeroSlider } from "@/components/home/hero-slider";
 import { ProductsSection } from "@/components/home/products-section";
