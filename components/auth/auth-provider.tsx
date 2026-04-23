@@ -7,7 +7,7 @@ import { toast } from "sonner";
 type AuthRole = "user" | "admin";
 
 export type UserProfile = {
-  fullName: string;
+  name: string;
   email: string;
   phone: string;
   city: string;
@@ -61,7 +61,7 @@ function buildDefaultProfile(email: string): UserProfile {
     .map(formatNameSegment);
 
   return {
-    fullName: nameSegments.length > 0 ? nameSegments.join(" ") : "Atelier Client",
+    name: nameSegments.length > 0 ? nameSegments.join(" ") : "Atelier Client",
     email,
     phone: "+91 98765 43210",
     city: "New Delhi",
@@ -111,9 +111,9 @@ function getInitialAuthState(): AuthState {
           typeof parsedAuthState.profile === "object" &&
           typeof parsedAuthState.profile.email === "string"
             ? {
-                fullName:
-                  typeof parsedAuthState.profile.fullName === "string"
-                    ? parsedAuthState.profile.fullName
+                name:
+                  typeof parsedAuthState.profile.name === "string"
+                    ? parsedAuthState.profile.name
                     : "Atelier Client",
                 email: parsedAuthState.profile.email,
                 phone:

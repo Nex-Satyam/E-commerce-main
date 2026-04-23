@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { SiteFooter } from "@/components/home/site-footer";
 import { SiteHeader } from "@/components/home/site-header";
+
 import { ProfilePageView } from "@/components/profile/profile-page-view";
 
 export const metadata: Metadata = {

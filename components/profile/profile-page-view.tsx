@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ArrowLeft, BadgeCheck, MapPin, PencilLine, Save, ShieldCheck, Sparkles } from "lucide-react";
-
+import axios from "axios";
 import { useAuth, type UserProfile } from "@/components/auth/auth-provider";
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
@@ -21,12 +21,29 @@ function getInitials(name: string) {
 
 export function ProfilePageView() {
   const { isLoggedIn, role, profile, updateProfile } = useAuth();
+  const [profileData, setProfileData] = useState<UserProfile | null>(profile);
+
   const [isEditing, setIsEditing] = useState(false);
   const [formState, setFormState] = useState<UserProfile | null>(profile);
 
-  const initials = useMemo(() => getInitials(profile?.fullName ?? "ASR"), [profile?.fullName]);
+   useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const res = await axios.get("/api/user/profile");
+        console.log("Profile data fetched from API:", res.data);
+        setProfileData(res.data);
+        setFormState(res.data);
+      } catch {
+        setProfileData(null);
+        setFormState(null);
+      }
+    }
+    fetchProfile();
+  }, []);
 
-  if (!isLoggedIn || !profile || !formState) {
+  const initials = useMemo(() => getInitials(profileData?.name ?? "ASR"), [profileData?.name]);
+
+  if (!profileData || !formState) {
     return (
       <section className="profile-page">
         <div className="profile-breadcrumb">
@@ -60,71 +77,69 @@ export function ProfilePageView() {
   }
 
   return (
-    <section className="profile-page">
-      <div className="profile-breadcrumb">
-        <Link href="/" className="wishlist-back-link">
+    <section className="profile-page bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9] min-h-[90vh] py-8">
+      <div className="profile-breadcrumb flex items-center gap-2 mb-6">
+        <Link href="/" className="wishlist-back-link text-muted-foreground hover:text-foreground flex items-center gap-1">
           <ArrowLeft className="size-4" /> Back to home
         </Link>
-        <span>/</span>
-        <span>My profile</span>
+        <span className="text-xl font-light text-gray-400">/</span>
+        <span className="font-semibold text-gray-700">My profile</span>
       </div>
 
-      <div className="profile-layout">
-        <Card className="profile-hero-card py-0 shadow-none">
-          <CardContent className="profile-hero-content">
-            <div className="profile-avatar">{initials || "AS"}</div>
-            <div className="profile-hero-copy">
-              <p className="eyebrow">Account Details</p>
-              <h1>{profile.fullName}</h1>
-              <p>
-                Review your saved contact details, delivery information, and account overview from one place.
-              </p>
+      <div className="profile-layout grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <Card className="profile-hero-card shadow-lg rounded-2xl border-0 bg-white/90 flex flex-col items-center py-10 px-8">
+          <div className="relative mb-4">
+            <div className="profile-avatar w-24 h-24 rounded-full bg-gradient-to-br from-[#e0e7ff] to-[#f1f5f9] flex items-center justify-center text-4xl font-bold text-gray-700 border-4 border-white shadow-lg ring-4 ring-indigo-200">
+              {initials || "AS"}
             </div>
-
-            <div className="profile-chip-row">
-              <span className="profile-chip">
-                {role === "admin" ? <ShieldCheck className="size-4" /> : <BadgeCheck className="size-4" />}
-                {role === "admin" ? "Admin account" : "Verified customer"}
-              </span>
-              <span className="profile-chip is-light">
-                <Sparkles className="size-4" /> Member since {profile.memberSince}
-              </span>
+            <span className="absolute bottom-0 right-0 bg-indigo-500 text-white rounded-full px-2 py-1 text-xs font-semibold shadow">{role === "admin" ? "Admin" : "User"}</span>
+          </div>
+          <div className="profile-hero-copy text-center">
+            <p className="eyebrow uppercase tracking-widest text-xs text-indigo-400 font-semibold mb-1">Account Details</p>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-800 mb-2">{profileData.name}</h1>
+            <p className="text-gray-500 mb-4">Review your saved contact details, delivery information, and account overview from one place.</p>
+          </div>
+          <div className="profile-chip-row flex gap-2 justify-center mb-4">
+            <span className="profile-chip flex items-center gap-1 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full font-medium shadow">
+              {role === "admin" ? <ShieldCheck className="size-4" /> : <BadgeCheck className="size-4" />} {role === "admin" ? "Admin account" : "Verified customer"}
+            </span>
+            <span className="profile-chip is-light flex items-center gap-1 bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-medium">
+              <Sparkles className="size-4" /> Member since {profileData.memberSince}
+            </span>
+          </div>
+          <div className="profile-stat-grid grid grid-cols-1 gap-2 w-full mt-2">
+            <div className="profile-stat-card bg-indigo-50 rounded-lg px-4 py-3 flex flex-col items-start">
+              <span className="text-xs text-gray-400">Email</span>
+              <strong className="text-base text-gray-700 break-all">{profileData.email}</strong>
             </div>
-
-            <div className="profile-stat-grid">
-              <div className="profile-stat-card">
-                <span>Email</span>
-                <strong>{profile.email}</strong>
-              </div>
-              <div className="profile-stat-card">
-                <span>Phone</span>
-                <strong>{profile.phone}</strong>
-              </div>
-              <div className="profile-stat-card">
-                <span>Location</span>
-                <strong>{profile.city}</strong>
-              </div>
+            <div className="profile-stat-card bg-indigo-50 rounded-lg px-4 py-3 flex flex-col items-start">
+              <span className="text-xs text-gray-400">Phone</span>
+              <strong className="text-base text-gray-700">{profileData.phone}</strong>
             </div>
-          </CardContent>
+            <div className="profile-stat-card bg-indigo-50 rounded-lg px-4 py-3 flex flex-col items-start">
+              <span className="text-xs text-gray-400">Location</span>
+              <strong className="text-base text-gray-700">{profileData.city}</strong>
+            </div>
+          </div>
         </Card>
 
-        <Card className="profile-details-card py-0 shadow-none">
-          <CardContent className="profile-details-content">
-            <div className="profile-section-head">
+        {/* Details/Edit Card */}
+        <Card className="profile-details-card shadow-lg rounded-2xl border-0 bg-white/90">
+          <CardContent className="profile-details-content p-8">
+            <div className="profile-section-head flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-2">
               <div>
-                <p className="eyebrow">Personal Information</p>
-                <h2>Your saved details</h2>
-                <p>Edit your customer information and keep checkout details up to date.</p>
+                <p className="eyebrow uppercase tracking-widest text-xs text-indigo-400 font-semibold mb-1">Personal Information</p>
+                <h2 className="text-xl font-bold text-gray-800">Your saved details</h2>
+                <p className="text-gray-500">Edit your customer information and keep checkout details up to date.</p>
               </div>
-
               {isEditing ? (
-                <div className="profile-head-actions">
+                <div className="profile-head-actions flex gap-2 mt-4 md:mt-0">
                   <Button
                     type="button"
                     variant="outline"
-                    className="rounded-full"
+                    className="rounded-full border-gray-300 hover:bg-gray-100"
                     onClick={() => {
-                      setFormState(profile);
+                      setFormState(profileData);
                       setIsEditing(false);
                     }}
                   >
@@ -132,55 +147,60 @@ export function ProfilePageView() {
                   </Button>
                   <CtaButton
                     type="button"
-                    className="profile-save-button"
-                    onClick={() => {
-                      updateProfile(formState);
-                      setIsEditing(false);
+                    className="profile-save-button rounded-full bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 font-semibold shadow"
+                    onClick={async () => {
+                      try {
+                        await axios.put("/api/user/profile", formState);
+                        updateProfile(formState);
+                        const res = await axios.get("/api/user/profile");
+                        setProfileData(res.data);
+                        setFormState(res.data);
+                        setIsEditing(false);
+                      } catch (err) {
+                        alert("Failed to update profile. Please try again.");
+                      }
                     }}
                   >
-                    <Save className="size-4" /> Save changes
+                    <Save className="size-4 mr-2" /> Save changes
                   </CtaButton>
                 </div>
               ) : (
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full"
+                  className="rounded-full border-gray-300 hover:bg-gray-100"
                   onClick={() => setIsEditing(true)}
                 >
-                  <PencilLine className="size-4" /> Edit profile
+                  <PencilLine className="size-4 mr-2" /> Edit profile
                 </Button>
               )}
             </div>
-
-            <form className="profile-form" onSubmit={(event) => event.preventDefault()}>
-              <div className="profile-two-col-grid">
-                <label className="profile-field">
-                  <span>Full Name</span>
+            <form className="profile-form grid gap-6" onSubmit={(event) => event.preventDefault()}>
+              <div className="profile-two-col-grid grid grid-cols-1 md:grid-cols-2 gap-6">
+                <label className="profile-field flex flex-col gap-1">
+                  <span className="text-sm font-medium text-gray-600">Full Name</span>
                   <Input
-                    value={formState.fullName}
+                    value={formState.name ?? ""}
                     onChange={(event) =>
                       setFormState((currentState) =>
                         currentState
-                          ? { ...currentState, fullName: event.target.value }
+                          ? { ...currentState, name: event.target.value }
                           : currentState,
                       )
                     }
                     disabled={!isEditing}
                   />
                 </label>
-
-                <label className="profile-field">
-                  <span>Email Address</span>
-                  <Input value={formState.email} disabled />
+                <label className="profile-field flex flex-col gap-1">
+                  <span className="text-sm font-medium text-gray-600">Email Address</span>
+                  <Input value={formState.email ?? ""} disabled />
                 </label>
               </div>
-
-              <div className="profile-two-col-grid">
-                <label className="profile-field">
-                  <span>Phone Number</span>
+              <div className="profile-two-col-grid grid grid-cols-1 md:grid-cols-2 gap-6">
+                <label className="profile-field flex flex-col gap-1">
+                  <span className="text-sm font-medium text-gray-600">Phone Number</span>
                   <Input
-                    value={formState.phone}
+                    value={formState.phone ?? ""}
                     onChange={(event) =>
                       setFormState((currentState) =>
                         currentState
@@ -191,11 +211,10 @@ export function ProfilePageView() {
                     disabled={!isEditing}
                   />
                 </label>
-
-                <label className="profile-field">
-                  <span>City</span>
+                <label className="profile-field flex flex-col gap-1">
+                  <span className="text-sm font-medium text-gray-600">City</span>
                   <Input
-                    value={formState.city}
+                    value={formState.city ?? ""}
                     onChange={(event) =>
                       setFormState((currentState) =>
                         currentState
@@ -207,11 +226,10 @@ export function ProfilePageView() {
                   />
                 </label>
               </div>
-
-              <label className="profile-field">
-                <span>Address</span>
+              <label className="profile-field flex flex-col gap-1">
+                <span className="text-sm font-medium text-gray-600">Address</span>
                 <Input
-                  value={formState.address}
+                  value={formState.address ?? ""}
                   onChange={(event) =>
                     setFormState((currentState) =>
                       currentState
@@ -223,20 +241,19 @@ export function ProfilePageView() {
                 />
               </label>
             </form>
-
-            <div className="profile-support-row">
-              <div className="profile-support-card">
-                <MapPin className="size-4" />
+            <div className="profile-support-row grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+              <div className="profile-support-card flex items-center gap-3 bg-indigo-50 rounded-lg px-4 py-3">
+                <MapPin className="size-5 text-indigo-400" />
                 <div>
-                  <strong>Primary delivery location</strong>
-                  <span>{profile.address}</span>
+                  <strong className="block text-gray-700">Primary delivery location</strong>
+                  <span className="text-gray-500">{profileData?.address}</span>
                 </div>
               </div>
-              <div className="profile-support-card">
-                <BadgeCheck className="size-4" />
+              <div className="profile-support-card flex items-center gap-3 bg-gray-100 rounded-lg px-4 py-3">
+                <BadgeCheck className="size-5 text-green-500" />
                 <div>
-                  <strong>Profile ready for checkout</strong>
-                  <span>Saved details will help you complete orders faster.</span>
+                  <strong className="block text-gray-700">Profile ready for checkout</strong>
+                  <span className="text-gray-500">Saved details will help you complete orders faster.</span>
                 </div>
               </div>
             </div>
