@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { cn } from "@/lib/utils";
 import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
+import { ClientProviders } from "@/components/auth/client-providers";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -29,10 +30,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn(displayFont.variable, bodyFont.variable, "font-sans", geist.variable)}>
-      <body>
-        <AuthProvider>
-          <WishlistProvider>{children}</WishlistProvider>
-        </AuthProvider>
+      <body className="antialiased">
+        <ClientProviders>
+          {children}
+        </ClientProviders>
       </body>
     </html>
   );

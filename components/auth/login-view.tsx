@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
+import { signIn } from "next-auth/react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { CtaButton } from "@/components/home/cta-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export function LoginView() {
   const router = useRouter();
@@ -35,13 +36,39 @@ export function LoginView() {
 
           <div className="auth-role-pill">Role auto-detected on login</div>
 
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mb-4 flex items-center justify-center gap-2"
+            onClick={async () => await signIn("google", { callbackUrl: "/" })}
+          >
+            <img src="/google.svg" alt="Google" width={20} height={20} />
+            Continue with Google
+          </Button>
           <form
             className="auth-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              login(email || "user@atelier.com");
-              router.push("/");
-            }}
+            onSubmit={async (event) => {
+  event.preventDefault();
+
+  try {
+    const res = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+
+    if (res?.error) {
+      alert("Invalid email or password ");
+      return;
+    }
+
+          router.push("/");
+        } catch (err) {
+        console.error(err);
+        alert("Something went wrong");
+             }
+      }}
           >
             <label className="auth-field">
               <span>Email Address</span>
