@@ -5,7 +5,6 @@ export async function adminLogout() {
 }
 
 export function getAdminSession() {
-  // TODO: replace with useSession() from next-auth/react
   if (typeof window === "undefined") return null;
 
   try {

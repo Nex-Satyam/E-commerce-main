@@ -28,6 +28,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+
     const totalOrders = await prisma.order.count({ where: { userId: id } });
 
     const ordersData = await prisma.order.findMany({

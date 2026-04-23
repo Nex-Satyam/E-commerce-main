@@ -8,21 +8,6 @@ datasource db {
   url      = "postgresql://postgres:1234@localhost:5432/Ecommerce_app"
 }
 
-model User {
-  id                String    @id @default(uuid())
-  name              String
-  email             String    @unique
-  password          String?
-  role              Role      @default(USER)
-  isVerified        Boolean   @default(false)
-  verificationToken String?
-  resetToken        String?
-  resetTokenExpiry  DateTime?
-  image             String?
-  phone             String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-}
 
 enum Role {
   USER
@@ -38,13 +23,13 @@ enum OrderStatus {
 }
 
 enum NotifType {
-  ORDER_PLACED       // → sent to USER  when they place an order
-  ORDER_CONFIRMED    // → sent to USER  when admin confirms
-  ORDER_SHIPPED      // → sent to USER  when admin marks shipped
-  ORDER_DELIVERED    // → sent to USER  when admin marks delivered
-  ORDER_CANCELLED    // → sent to USER  when order is cancelled
-  NEW_ORDER          // → sent to ADMIN when any user places an order
-  LOW_STOCK          // → sent to ADMIN when variant stock drops below 5
+  ORDER_PLACED      
+  ORDER_CONFIRMED    
+  ORDER_SHIPPED      
+  ORDER_DELIVERED    
+  ORDER_CANCELLED    
+  NEW_ORDER          
+  LOW_STOCK          
 }
 
 // ─── User & Auth ─────────────────────────────────────────────
@@ -57,13 +42,14 @@ model User {
   password     String?  // nullable → future OAuth support (Google, GitHub)
   role         Role     @default(USER)
   isBanned     Boolean  @default(false)
-  isSuperAdmin Boolean  @default(false) // only super-admin can promote others to ADMIN
+  isSuperAdmin Boolean  @default(false)  
   isVerified   Boolean  @default(false)
   verificationToken String? @unique
-
+dateOfBirth DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 resetToken   String?
+address String?  
 resetTokenExpiry DateTime?
   // relations
   addresses     Address[]
@@ -146,14 +132,13 @@ model ProductVariant {
   orderItems OrderItem[]
 
   @@index([productId])
-  @@index([stock])  // fast low-stock query: WHERE stock < 5
+  @@index([stock])  
 }
 
-// Multiple images per product
 model ProductImage {
   id        String  @id @default(cuid())
   url       String
-  altText   String? // accessibility + SEO
+  altText   String? 
   isPrimary Boolean @default(false) // shown on product card
   sortOrder Int     @default(0)     // gallery order
 
@@ -166,7 +151,7 @@ model ProductImage {
 // Product reviews (one per user per product)
 model Review {
   id        String   @id @default(cuid())
-  rating    Int      // 1–5  (enforce in application layer: z.number().min(1).max(5))
+  rating    Int     
   comment   String?
   createdAt DateTime @default(now())
 
@@ -176,7 +161,7 @@ model Review {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, productId]) // one review per product per user — DB-level enforcement
+  @@unique([userId, productId]) 
   @@index([productId])
 }
 
@@ -184,7 +169,7 @@ model Review {
 
 model CartItem {
   id       String   @id @default(cuid())
-  quantity Int      @default(1) // always >= 1, always <= variant.stock
+  quantity Int      @default(1) 
   addedAt  DateTime @default(now())
 
   userId String
