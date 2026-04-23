@@ -11,7 +11,8 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: string;
+      role?: string;
+      isSuperAdmin?: boolean;
       name?: string | null;
       email?: string | null;
       image?: string | null;
@@ -19,7 +20,8 @@ declare module "next-auth" {
   }
   interface User {
     id: string;
-    role: string;
+    role?: string;
+    isSuperAdmin?: boolean;
     name?: string | null;
     email?: string | null;
     image?: string | null;
@@ -58,6 +60,7 @@ const authOptions: AuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.isSuperAdmin = user.isSuperAdmin;
       }
       return token;
     },
@@ -66,6 +69,7 @@ const authOptions: AuthOptions = {
       if (session.user) {
         (session.user as any).id = token.id as string;
         (session.user as any).role = token.role as string;
+        (session.user as any).isSuperAdmin = token.isSuperAdmin as boolean;
       }
       return session;
     },
