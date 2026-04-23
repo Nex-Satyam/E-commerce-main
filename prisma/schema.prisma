@@ -83,7 +83,7 @@ model Address {
   @@index([userId])
 }
 
-// ─── Catalog ─────────────────────────────────────────────────
+// ─── Catalog
 
 model Category {
   id   String @id @default(cuid())
