@@ -16,7 +16,6 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
 
-    // @ts-ignore
     const users = await prisma.user.findMany({
       where: {
         OR: [
@@ -63,10 +62,7 @@ export async function PATCH(request: Request) {
     }
 
     const { pathname } = new URL(request.url);
-    const id = pathname.split("/").pop(); // This is a bit fragile if not in [id]/route.ts
-    // Wait, the prompt says /api/admin/users/:id
-    // But this file is /api/admin/users/route.ts
-    // I should probably create /api/admin/users/[id]/route.ts instead for PATCH
+    const id = pathname.split("/").pop(); 
     
     return NextResponse.json({ error: "Use /api/admin/users/[id] for PATCH" }, { status: 400 });
   } catch (error) {
