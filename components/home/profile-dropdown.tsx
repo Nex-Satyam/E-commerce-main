@@ -27,7 +27,7 @@ export function ProfileDropdown() {
     const auth = useAuth();
     if (auth && auth.isLoggedIn) {
       isLoggedIn = true;
-      name = auth.profile?.fullName || "";
+      name = auth.profile?.name || "";
       email = auth.profile?.email || "";
       role = (auth.role as string | undefined) || role;
     }
