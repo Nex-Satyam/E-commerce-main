@@ -51,7 +51,8 @@ const productSchema = z.object({
   }
 });
 
-type ProductFormValues = z.infer<typeof productSchema>;
+type ProductFormInput = z.input<typeof productSchema>;
+type ProductFormValues = z.output<typeof productSchema>;
 
 const emptyVariant = () => ({
   id: `new_${crypto.randomUUID()}`,
@@ -135,7 +136,7 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<ProductFormValues>({
+  } = useForm<ProductFormInput, any, ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       name: "",

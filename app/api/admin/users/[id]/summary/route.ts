@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "ADMIN") {
@@ -27,7 +27,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
 
     const totalOrders = await prisma.order.count({ where: { userId: id } });
 

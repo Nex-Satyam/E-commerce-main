@@ -4,28 +4,6 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcrypt";
 import { prisma } from "./prisma";
 
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      role: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-    };
-  }
-
-  interface User {
-    id: string;
-    role: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    password?: string | null;
-    isBanned?: boolean; // optional (safe)
-  }
-}
-
 export const authOptions: AuthOptions = {
   session: { strategy: "jwt" },
 

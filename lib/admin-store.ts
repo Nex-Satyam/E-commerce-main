@@ -32,6 +32,7 @@ export type AdminOrder = {
 export type AdminCategory = {
   id: string;
   name: string;
+  slug: string;
 };
 
 export type AdminProductImage = {
@@ -122,8 +123,7 @@ export function formatOrderAddress(order: AdminOrder) {
     order.address.line2,
     order.address.city,
     order.address.state,
-    order.address.postalCode,
-    order.address.country,
+    order.address.pincode,
   ]
     .filter(Boolean)
     .join(", ");
@@ -261,10 +261,11 @@ export function getTopProducts() {
     .filter((order) => order.status === "DELIVERED")
     .flatMap((order) => order.items)
     .forEach((item) => {
-      const current = totals.get(item.productId) ?? { name: item.productName, unitsSold: 0, revenue: 0 };
+      const productKey = item.productId ?? item.productName;
+      const current = totals.get(productKey) ?? { name: item.productName, unitsSold: 0, revenue: 0 };
       current.unitsSold += item.quantity;
       current.revenue += item.quantity * item.unitPrice;
-      totals.set(item.productId, current);
+      totals.set(productKey, current);
     });
 
   return [...totals.values()].sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5);

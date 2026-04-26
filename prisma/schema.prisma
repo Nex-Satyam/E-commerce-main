@@ -113,8 +113,8 @@ model Product {
   name        String
   description String?
   brand       String?
-  slug        String  @unique // SEO URL: "keychron-k2-pro", "grovemade-desk-mat"
-  isActive    Boolean @default(true) // false = hidden from store, NOT deleted
+  slug        String  @unique 
+  isActive    Boolean @default(true) 
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
@@ -122,7 +122,6 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // relations
   variants ProductVariant[]
   images   ProductImage[]
   reviews  Review[]
