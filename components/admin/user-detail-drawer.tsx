@@ -17,24 +17,55 @@ interface UserDetailDrawerProps {
 
 export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
   const [summary, setSummary] = useState<UserSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!userId) {
       setSummary(null);
+      setError(null);
       return;
     }
 
+    const selectedUserId = userId;
+
     async function loadSummary() {
       setIsLoading(true);
+      setSummary(null);
+      setError(null);
       try {
-        const response = await fetch(`/api/admin/users/${userId}/summary`);
+        const params = new URLSearchParams({ id: selectedUserId });
+        const response = await fetch(`/api/admin/users/summary?${params.toString()}`, {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+          redirect: "manual",
+        });
+        const contentType = response.headers.get("content-type") ?? "";
+
+        if (!contentType.includes("application/json")) {
+          const body = await response.text();
+          console.error("User summary returned non-JSON:", {
+            status: response.status,
+            url: response.url,
+            contentType,
+            body: body.slice(0, 300),
+          });
+          setError("User details API returned a page instead of JSON.");
+          return;
+        }
+
         const data = await response.json();
+        if (!response.ok) {
+          setError(data.error || "Failed to load user summary.");
+          return;
+        }
+
         if (data.summary) {
           setSummary(data.summary);
         }
       } catch (error) {
-        console.error("Failed to load user summary:", error);
+        console.error("Failed to load user summary.");
+        setError(error instanceof Error ? error.message : "Failed to load user summary.");
       } finally {
         setIsLoading(false);
       }
@@ -82,12 +113,14 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
                 <div className="h-40 w-full animate-pulse rounded-lg bg-slate-100" />
                 <div className="h-64 w-full animate-pulse rounded-lg bg-slate-100" />
               </div>
+            ) : error ? (
+              <p className="py-20 text-center text-sm text-red-500">{error}</p>
             ) : summary ? (
               <>
                 {/* Profile Card */}
                 <section className="flex items-start gap-4 rounded-xl border border-slate-100 bg-slate-50/50 p-5">
                   <div className="flex size-14 items-center justify-center rounded-full bg-slate-900 text-xl font-semibold text-white uppercase">
-                    {summary.name[0]}
+                    {summary.name?.[0] ?? "U"}
                   </div>
                   <div className="grid gap-1">
                     <h3 className="text-lg font-bold text-slate-900">{summary.name}</h3>

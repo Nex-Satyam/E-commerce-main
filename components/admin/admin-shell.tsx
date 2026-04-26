@@ -51,7 +51,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={`flex items-center rounded-md px-3 py-2 text-sm font-medium transition whitespace-nowrap overflow-hidden
-                  ${isActive ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-200"}
+                  ${isActive ? "bg-[#f1f1f1] text-white" : "text-slate-600 hover:bg-slate-200"}
                   ${isMobileOpen ? "gap-3" : "justify-center md:justify-start md:gap-3"}
                 `}
                 title={!isMobileOpen ? item.label : undefined}
