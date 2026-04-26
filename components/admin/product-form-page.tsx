@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Save, Trash2 } from "lucide-react";
+import { BadgeIndianRupee, Boxes, GripVertical, Hash, Package, Plus, Save, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import type { AdminCategory, AdminProduct } from "@/components/admin/types";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -404,74 +404,119 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
       </section>
 
       <section className="grid gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-slate-950">Variants</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Variants</h2>
+            <p className="mt-1 text-sm text-slate-500">{variantFields.length} sellable option{variantFields.length === 1 ? "" : "s"}</p>
+          </div>
           <button
             type="button"
             onClick={() => appendVariant(emptyVariant())}
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-700"
           >
             <Plus className="size-4" />
-            Add row
+            Add variant
           </button>
         </div>
         {errors.variants?.root && <div className="text-sm text-red-600 normal-case">{errors.variants.root.message}</div>}
-        <div className="grid gap-3">
+        <div className="grid gap-4">
           {variantFields.map((field, index) => {
             const variantError = errors.variants?.[index];
             const manualSkuError = variants[index]?.skuError;
             return (
-              <div key={field.id} className="grid gap-3 rounded-md border border-slate-200 p-3 md:grid-cols-[1fr_140px_120px_1fr_auto] md:items-start">
-                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Name
-                  <input
-                    {...register(`variants.${index}.name`)}
-                    className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </label>
-                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Price
-                  <input
-                    type="number"
-                    min="0"
-                    {...register(`variants.${index}.price`)}
-                    className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                  {variantError?.price && <span className="text-xs normal-case tracking-normal text-red-600">{variantError.price.message}</span>}
-                </label>
-                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Stock
-                  <input
-                    type="number"
-                    min="0"
-                    {...register(`variants.${index}.stock`)}
-                    className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                  {variantError?.stock && <span className="text-xs normal-case tracking-normal text-red-600">{variantError.stock.message}</span>}
-                </label>
-                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  SKU
-                  <input
-                    {...register(`variants.${index}.sku`, {
-                      onBlur: () => validateSku(index),
-                      onChange: () => updateVariant(index, { ...variants[index], skuError: undefined })
-                    })}
-                    className={[
-                      "h-10 rounded-md border px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100",
-                      (variantError?.sku || manualSkuError) ? "border-red-300" : "border-slate-200",
-                    ].join(" ")}
-                  />
-                  {(variantError?.sku || manualSkuError) ? <span className="text-xs normal-case tracking-normal text-red-600">{variantError?.sku?.message || manualSkuError}</span> : null}
-                </label>
-                <button
-                  type="button"
-                  aria-label="Remove variant"
-                  onClick={() => variantFields.length > 1 ? removeVariant(index) : null}
-                  className="mt-5 inline-flex size-9 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
-                  disabled={variantFields.length <= 1}
-                >
-                  <Trash2 className="size-4" />
-                </button>
+              <div key={field.id} className="overflow-hidden rounded-md border border-slate-200 bg-slate-50/40">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex size-8 items-center justify-center rounded-md bg-slate-900 text-xs font-semibold text-white">
+                      {index + 1}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">Variant {index + 1}</p>
+                      <p className="text-xs text-slate-500">{variants[index]?.sku || "No SKU yet"}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Remove variant"
+                    onClick={() => variantFields.length > 1 ? removeVariant(index) : null}
+                    className="inline-flex size-9 items-center justify-center rounded-md border border-red-200 bg-white text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={variantFields.length <= 1}
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+
+                <div className="grid min-w-0 items-start gap-4 p-4 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.2fr)_160px_160px_minmax(240px,1fr)]">
+                  <label className="grid min-w-0 gap-1.5 text-xs font-semibold uppercase text-slate-500">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Package className="size-3.5" />
+                      Name
+                    </span>
+                    <input
+                      {...register(`variants.${index}.name`)}
+                      placeholder="Space Grey / Blue Switch"
+                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-normal normal-case text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <span className="min-h-4 text-xs normal-case">&nbsp;</span>
+                  </label>
+
+                  <label className="grid min-w-0 gap-1.5 text-xs font-semibold uppercase text-slate-500">
+                    <span className="inline-flex items-center gap-1.5">
+                      <BadgeIndianRupee className="size-3.5" />
+                      Price
+                    </span>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        {...register(`variants.${index}.price`)}
+                        className="h-10 w-full rounded-md border border-slate-200 bg-white pl-7 pr-3 text-sm font-normal normal-case text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+                    <span className="min-h-4 text-xs normal-case text-red-600">{variantError?.price?.message ?? "\u00a0"}</span>
+                  </label>
+
+                  <label className="grid min-w-0 gap-1.5 text-xs font-semibold uppercase text-slate-500">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Boxes className="size-3.5" />
+                      Stock
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      {...register(`variants.${index}.stock`)}
+                      className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal normal-case text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <span className="min-h-4 text-xs normal-case text-red-600">{variantError?.stock?.message ?? "\u00a0"}</span>
+                  </label>
+
+                  <label className="grid min-w-0 gap-1.5 text-xs font-semibold uppercase text-slate-500">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Hash className="size-3.5" />
+                      SKU
+                    </span>
+                    <input
+                      {...register(`variants.${index}.sku`, {
+                        onBlur: () => validateSku(index),
+                        onChange: () => updateVariant(index, { ...variants[index], skuError: undefined })
+                      })}
+                      placeholder="SKU-001"
+                      className={[
+                        "h-10 w-full rounded-md border bg-white px-3 text-sm font-normal normal-case text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100",
+                        (variantError?.sku || manualSkuError) ? "border-red-300" : "border-slate-200",
+                      ].join(" ")}
+                    />
+                    <span
+                      className={[
+                        "min-h-4 max-w-full break-words text-xs normal-case",
+                        (variantError?.sku || manualSkuError) ? "text-red-600" : "text-green-600",
+                      ].join(" ")}
+                    >
+                      {(variantError?.sku?.message || manualSkuError) ?? (variants[index]?.sku ? "SKU available" : "\u00a0")}
+                    </span>
+                  </label>
+                </div>
               </div>
             );
           })}
