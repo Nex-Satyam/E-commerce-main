@@ -1,0 +1,246 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum NotifType {
+  ORDER_PLACED      
+  ORDER_CONFIRMED    
+  ORDER_SHIPPED      
+  ORDER_DELIVERED    
+  ORDER_CANCELLED    
+  NEW_ORDER          
+  LOW_STOCK          
+}
+
+// ─── User & Auth ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  password     String?  
+  role         Role     @default(USER)
+  isBanned     Boolean  @default(false)
+  isSuperAdmin Boolean  @default(false)  
+  isVerified   Boolean  @default(false)
+  verificationToken String? @unique
+dateOfBirth DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+resetToken   String?
+address String?  
+resetTokenExpiry DateTime?
+  addresses     Address[]
+  cartItems     CartItem[]
+  orders        Order[]
+  reviews       Review[]
+  notifications Notification[]
+
+  @@index([email])  
+  @@index([role])    
+}
+
+model Address {
+  id        String  @id @default(cuid())
+  label     String  @default("Home") "Other"
+  fullName  String
+  phone     String
+  line1     String
+  line2     String? 
+  city      String
+  state     String
+  pincode   String
+  isDefault Boolean @default(false)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orders Order[] 
+
+  @@index([userId])
+}
+
+// ─── Catalog
+
+model Category {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique "desk-mats"
+
+  products Product[]
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  brand       String?
+  slug        String  @unique 
+  isActive    Boolean @default(true) 
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants ProductVariant[]
+  images   ProductImage[]
+  reviews  Review[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([slug])
+}
+
+model ProductVariant {
+  id    String @id @default(cuid())
+  name  String // e.g. "Space Grey / Blue Switch"
+  sku   String @unique
+  price Int    // stored in PAISE — ₹1,299 = 129900
+  stock Int    @default(0)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@index([productId])
+  @@index([stock])  
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  altText   String? 
+  isPrimary Boolean @default(false) 
+  sortOrder Int     @default(0)     
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int     
+  comment   String?
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId]) 
+  @@index([productId])
+}
+
+// ─── Cart 
+
+model CartItem {
+  id       String   @id @default(cuid())
+  quantity Int      @default(1) 
+  addedAt  DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, variantId]) 
+  @@index([userId])
+}
+
+// ─── Orders 
+
+model Order {
+  id          String      @id @default(cuid())
+  status      OrderStatus @default(PENDING)
+  totalAmount Int        
+
+  customerName  String
+  customerEmail String
+
+  adminNote String? 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  addressId String
+  address   Address @relation(fields: [addressId], references: [id])
+
+  items         OrderItem[]
+  notifications Notification[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt]) 
+  @@index([customerEmail]) 
+}
+
+model OrderItem {
+  id       String @id @default(cuid())
+  quantity Int
+
+  productName  String 
+  variantName  String 
+  priceAtOrder Int    
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+}
+
+// ─── Notifications 
+
+model Notification {
+  id        String    @id @default(cuid())
+  type      NotifType
+  title     String    
+  message   String    
+  link      String?   
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orderId String?
+  order   Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt]) 
+}
