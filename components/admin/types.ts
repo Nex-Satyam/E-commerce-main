@@ -1,5 +1,5 @@
 import type {
-  AdminCategory,
+  AdminCategory as StoreAdminCategory,
   AdminOrder,
   AdminProduct,
   AdminProductImage,
@@ -10,10 +10,7 @@ import type {
 export type { AdminProduct, AdminProductImage, AdminProductVariant, OrderStatus };
 export type { AdminOrder };
 
-export type AdminCategory = {
-  id: string;
-  name: string;
-  slug: string;
+export type AdminCategory = StoreAdminCategory & {
   _count?: {
     products: number;
   };
