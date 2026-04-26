@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
+<<<<<<< HEAD
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CtaButton } from "@/components/home/cta-button";
@@ -11,15 +12,29 @@ import { useWishlist } from "@/components/wishlist/wishlist-provider";
 
 import { useToast } from "@/components/ui/toast-context";
 
+=======
+
+import { CtaButton } from "@/components/home/cta-button";
+import { ProductItem } from "@/components/home/home-data";
+import { useWishlist } from "@/components/wishlist/wishlist-provider";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+>>>>>>> origin/main
 
 type ProductCardProps = {
   product: ProductItem;
 };
 
+<<<<<<< HEAD
 export default function ProductCard({ product }: ProductCardProps) {
   const { isInWishlist, toggleWishlist } = useWishlist();
   const isWishlisted = isInWishlist(product.slug);
   const { showToast } = useToast();
+=======
+export function ProductCard({ product }: ProductCardProps) {
+  const { isInWishlist, toggleWishlist } = useWishlist();
+  const isWishlisted = isInWishlist(product.slug);
+>>>>>>> origin/main
 
   return (
     <Card
@@ -35,6 +50,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           className={`product-wishlist-button${isWishlisted ? " is-active" : ""}`}
           aria-label={`${isWishlisted ? "Remove" : "Add"} ${product.name} ${isWishlisted ? "from" : "to"} wishlist`}
           aria-pressed={isWishlisted}
+<<<<<<< HEAD
           onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
             event.preventDefault();
             event.stopPropagation();
@@ -43,6 +59,12 @@ export default function ProductCard({ product }: ProductCardProps) {
               isWishlisted ? "Removed from wishlist" : "Added to wishlist!",
               isWishlisted ? "info" : "success"
             );
+=======
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleWishlist(product.slug);
+>>>>>>> origin/main
           }}
         >
           <Heart className={`size-4${isWishlisted ? " fill-current" : ""}`} />

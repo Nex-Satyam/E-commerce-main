@@ -171,7 +171,11 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {order.items.map((item, index) => (
+<<<<<<< HEAD
                   <tr key={item.id ?? `${item.productId}-${index}`}>
+=======
+                  <tr key={item.id ?? `${item.variantId}-${index}`}>
+>>>>>>> origin/main
                     <td className="px-5 py-4 font-medium text-slate-950">{item.productName}</td>
                     <td className="px-5 py-4 text-slate-600">{item.variantName ?? "-"}</td>
                     <td className="px-5 py-4 text-slate-600">{item.quantity}</td>

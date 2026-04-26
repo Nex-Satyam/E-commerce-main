@@ -3,8 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+<<<<<<< HEAD
 import api from "@/lib/axios";
 import { useToast } from "@/components/ui/toast-context";
+=======
+>>>>>>> origin/main
 import { ArrowLeft, ArrowRight, Star } from "lucide-react";
 
 import { CtaButton } from "@/components/home/cta-button";
@@ -22,6 +25,7 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
   const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name ?? "");
 
+<<<<<<< HEAD
   const { showToast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
 
@@ -42,6 +46,8 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
     }
   };
 
+=======
+>>>>>>> origin/main
   const goToPrevious = () => {
     setActiveImageIndex((currentIndex) =>
       currentIndex === 0 ? product.images.length - 1 : currentIndex - 1,
@@ -223,9 +229,13 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
           </div>
 
           <div className="product-detail-actions">
+<<<<<<< HEAD
             <CtaButton className="product-action-button" onClick={handleAddToCart} disabled={isAdding}>
               {isAdding ? "Adding..." : "Add to Cart"}
             </CtaButton>
+=======
+            <CtaButton className="product-action-button">Add to Cart</CtaButton>
+>>>>>>> origin/main
             <CtaButton tone="light" className="product-action-button">
               Buy Now
             </CtaButton>

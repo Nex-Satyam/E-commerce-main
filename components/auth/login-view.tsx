@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { signIn } from "next-auth/react";
+<<<<<<< HEAD
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { CtaButton } from "@/components/home/cta-button";
@@ -21,6 +22,21 @@ export default function LoginView() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { showToast } = useToast();
+=======
+import { useAuth } from "@/components/auth/auth-provider";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { CtaButton } from "@/components/home/cta-button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+export function LoginView() {
+  const router = useRouter();
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+>>>>>>> origin/main
 
   return (
     <AuthShell
@@ -51,6 +67,7 @@ export default function LoginView() {
                   redirect: false,
                 });
                 if (res?.error) {
+<<<<<<< HEAD
                   showToast("Invalid email or password.", "error");
                   return;
                 }
@@ -59,6 +76,15 @@ export default function LoginView() {
               } catch (err) {
                 showToast("Something went wrong.", "error");
                 console.error(err);
+=======
+                  alert("Invalid email or password ");
+                  return;
+                }
+                router.push("/");
+              } catch (err) {
+                console.error(err);
+                alert("Something went wrong");
+>>>>>>> origin/main
               }
             }}
           >
@@ -133,4 +159,8 @@ export default function LoginView() {
       </Card>
     </AuthShell>
   );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> origin/main

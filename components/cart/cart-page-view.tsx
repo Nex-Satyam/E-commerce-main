@@ -3,11 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+<<<<<<< HEAD
 import api from "@/lib/axios";
+=======
+>>>>>>> origin/main
 import { ArrowLeft, ShieldCheck, Truck } from "lucide-react";
 
 import { CtaButton } from "@/components/home/cta-button";
 import { cartItems, getProductBySlug } from "@/components/home/home-data";
+<<<<<<< HEAD
 
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -15,6 +19,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast-context";
 
 
+=======
+import { Card, CardContent } from "@/components/ui/card";
+
+>>>>>>> origin/main
 const quantityOptions = [0, 1, 2, 3, 4, 5];
 
 function parsePrice(price: string) {
@@ -30,6 +38,7 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+<<<<<<< HEAD
 
 
 function CartPageView() {
@@ -38,15 +47,37 @@ function CartPageView() {
   );
   const { showToast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
+=======
+export function CartPageView() {
+  const [quantities, setQuantities] = useState<Record<string, number>>(
+    Object.fromEntries(cartItems.map((item) => [item.productSlug, item.quantity])),
+  );
+>>>>>>> origin/main
 
   const items = useMemo(() => {
     return cartItems
       .map((item) => {
         const product = getProductBySlug(item.productSlug);
+<<<<<<< HEAD
         if (!product) return undefined;
         const quantity = quantities[item.productSlug] ?? item.quantity;
         if (quantity <= 0) return undefined;
         const unitPrice = parsePrice(product.price);
+=======
+
+        if (!product) {
+          return null;
+        }
+
+        const quantity = quantities[item.productSlug] ?? item.quantity;
+
+        if (quantity <= 0) {
+          return null;
+        }
+
+        const unitPrice = parsePrice(product.price);
+
+>>>>>>> origin/main
         return {
           ...item,
           product,
@@ -59,6 +90,10 @@ function CartPageView() {
   }, [quantities]);
 
   const hasItems = items.length > 0;
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
   const shipping = hasItems ? (subtotal >= 180 ? 0 : 12) : 0;
   const tax = hasItems ? Number((subtotal * 0.08).toFixed(2)) : 0;
@@ -121,6 +156,7 @@ function CartPageView() {
                         <span>Quantity</span>
                         <select
                           value={item.quantity}
+<<<<<<< HEAD
                           disabled={isUpdating}
                           onChange={async (event) => {
                             const newQty = Number(event.target.value);
@@ -148,6 +184,13 @@ function CartPageView() {
                             } finally {
                               setIsUpdating(false);
                             }
+=======
+                          onChange={(event) => {
+                            setQuantities((current) => ({
+                              ...current,
+                              [item.product.slug]: Number(event.target.value),
+                            }));
+>>>>>>> origin/main
                           }}
                         >
                           {quantityOptions.map((option) => (
@@ -240,6 +283,10 @@ function CartPageView() {
       </section>
     </main>
   );
+<<<<<<< HEAD
 }
 
 export default CartPageView;
+=======
+}
+>>>>>>> origin/main

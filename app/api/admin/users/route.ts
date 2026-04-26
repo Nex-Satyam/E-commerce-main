@@ -16,6 +16,10 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
 
+<<<<<<< HEAD
+=======
+    // @ts-ignore
+>>>>>>> origin/main
     const users = await prisma.user.findMany({
       where: {
         OR: [
@@ -54,6 +58,7 @@ export async function GET(request: Request) {
   }
 }
 
+<<<<<<< HEAD
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -69,3 +74,5 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+=======
+>>>>>>> origin/main

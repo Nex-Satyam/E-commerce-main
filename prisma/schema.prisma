@@ -1,17 +1,32 @@
 
 generator client {
+<<<<<<< HEAD
   provider = "prisma-client-js"
+=======
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+>>>>>>> origin/main
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+<<<<<<< HEAD
+=======
+  schemas  = ["mini_e_commerce"]
+>>>>>>> origin/main
 }
 
 
 enum Role {
   USER
   ADMIN
+<<<<<<< HEAD
+=======
+  SELLER
+
+  @@schema("mini_e_commerce")
+>>>>>>> origin/main
 }
 
 enum OrderStatus {
@@ -20,6 +35,11 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+<<<<<<< HEAD
+=======
+
+  @@schema("mini_e_commerce")
+>>>>>>> origin/main
 }
 
 enum NotifType {
@@ -30,11 +50,17 @@ enum NotifType {
   ORDER_CANCELLED    
   NEW_ORDER          
   LOW_STOCK          
+<<<<<<< HEAD
+=======
+
+  @@schema("mini_e_commerce")
+>>>>>>> origin/main
 }
 
 // ─── User & Auth ─────────────────────────────────────────────
 
 model User {
+<<<<<<< HEAD
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
@@ -51,12 +77,34 @@ dateOfBirth DateTime?
 resetToken   String?
 address String?  
 resetTokenExpiry DateTime?
+=======
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  password     String?  // nullable → future OAuth support (Google, GitHub)
+  role         Role     @default(USER)
+  isBanned     Boolean  @default(false)
+  image        String?
+
+  isVerified        Boolean   @default(false)
+  verificationToken String?   @unique
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  address           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+>>>>>>> origin/main
   addresses     Address[]
   cartItems     CartItem[]
   orders        Order[]
   reviews       Review[]
   notifications Notification[]
 
+<<<<<<< HEAD
   @@index([email])  
   @@index([role])    
 }
@@ -68,6 +116,21 @@ model Address {
   phone     String
   line1     String
   line2     String? 
+=======
+  @@index([email])   // fast login lookup
+  @@index([role])    // fast admin user list query
+  @@schema("mini_e_commerce")
+}
+
+// Saved delivery addresses (reusable across orders)
+model Address {
+  id        String  @id @default(cuid())
+  label     String  @default("Home")  // "Home", "Office", "Other"
+  fullName  String
+  phone     String
+  line1     String
+  line2     String? // apartment, floor, landmark
+>>>>>>> origin/main
   city      String
   state     String
   pincode   String
@@ -76,9 +139,16 @@ model Address {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+<<<<<<< HEAD
   orders Order[] 
 
   @@index([userId])
+=======
+  orders Order[] // orders placed using this address
+
+  @@index([userId])
+  @@schema("mini_e_commerce")
+>>>>>>> origin/main
 }
 
 // ─── Catalog
@@ -86,9 +156,17 @@ model Address {
 model Category {
   id   String @id @default(cuid())
   name String
+<<<<<<< HEAD
   slug String @unique "desk-mats"
 
   products Product[]
+=======
+  slug String @unique // URL-safe: "mechanical-keyboards", "desk-mats"
+
+  products Product[]
+
+  @@schema("mini_e_commerce")
+>>>>>>> origin/main
 }
 
 model Product {
@@ -112,8 +190,15 @@ model Product {
   @@index([categoryId])
   @@index([isActive])
   @@index([slug])
+<<<<<<< HEAD
 }
 
+=======
+  @@schema("mini_e_commerce")
+}
+
+// Each sellable option of a product (e.g. "Red Switch / 65%", "Black / XL")
+>>>>>>> origin/main
 model ProductVariant {
   id    String @id @default(cuid())
   name  String // e.g. "Space Grey / Blue Switch"
@@ -128,22 +213,39 @@ model ProductVariant {
   orderItems OrderItem[]
 
   @@index([productId])
+<<<<<<< HEAD
   @@index([stock])  
+=======
+  @@index([stock])
+  @@schema("mini_e_commerce")
+>>>>>>> origin/main
 }
 
 model ProductImage {
   id        String  @id @default(cuid())
   url       String
   altText   String? 
+<<<<<<< HEAD
   isPrimary Boolean @default(false) 
   sortOrder Int     @default(0)     
+=======
+  isPrimary Boolean @default(false) // shown on product card
+  sortOrder Int     @default(0)     // gallery order
+>>>>>>> origin/main
 
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
+<<<<<<< HEAD
 }
 
+=======
+  @@schema("mini_e_commerce")
+}
+
+// Product reviews (one per user per product)
+>>>>>>> origin/main
 model Review {
   id        String   @id @default(cuid())
   rating    Int     
@@ -158,9 +260,16 @@ model Review {
 
   @@unique([userId, productId]) 
   @@index([productId])
+<<<<<<< HEAD
 }
 
 // ─── Cart 
+=======
+  @@schema("mini_e_commerce")
+}
+
+// ─── Cart ─────────────────────────────────────────────────────
+>>>>>>> origin/main
 
 model CartItem {
   id       String   @id @default(cuid())
@@ -173,21 +282,40 @@ model CartItem {
   variantId String
   variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
+<<<<<<< HEAD
   @@unique([userId, variantId]) 
   @@index([userId])
 }
 
 // ─── Orders 
+=======
+  @@unique([userId, variantId]) // no duplicate rows — increment qty instead of inserting
+  @@index([userId])
+  @@schema("mini_e_commerce")
+}
+
+// ─── Orders ───────────────────────────────────────────────────
+>>>>>>> origin/main
 
 model Order {
   id          String      @id @default(cuid())
   status      OrderStatus @default(PENDING)
+<<<<<<< HEAD
   totalAmount Int        
 
   customerName  String
   customerEmail String
 
   adminNote String? 
+=======
+  totalAmount Int         // stored in PAISE, sum of all OrderItems
+
+  // Customer snapshot — denormalized so order stays correct even if user edits profile
+  customerName  String
+  customerEmail String
+
+  adminNote String? // internal note visible only to admin, never to customer
+>>>>>>> origin/main
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -195,6 +323,10 @@ model Order {
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
+<<<<<<< HEAD
+=======
+  // Address snapshot via relation — address is locked at order time
+>>>>>>> origin/main
   addressId String
   address   Address @relation(fields: [addressId], references: [id])
 
@@ -203,32 +335,60 @@ model Order {
 
   @@index([userId])
   @@index([status])
+<<<<<<< HEAD
   @@index([createdAt]) 
   @@index([customerEmail]) 
 }
 
+=======
+  @@index([createdAt]) // fast date-range queries for admin dashboard
+  @@index([customerEmail]) // fast search by email
+  @@schema("mini_e_commerce")
+}
+
+// Each line item inside an order — fully snapshotted at checkout time
+>>>>>>> origin/main
 model OrderItem {
   id       String @id @default(cuid())
   quantity Int
 
+<<<<<<< HEAD
   productName  String 
   variantName  String 
   priceAtOrder Int    
+=======
+  // SNAPSHOTS — never change even if product is edited or deleted later
+  productName  String // e.g. "Keychron K2 Pro"
+  variantName  String // e.g. "Space Grey / Red Switch"
+  priceAtOrder Int    // price in PAISE at the moment of purchase
+>>>>>>> origin/main
 
   orderId String
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   variantId String
   variant   ProductVariant @relation(fields: [variantId], references: [id])
+<<<<<<< HEAD
 
   @@index([orderId])
 }
 
 // ─── Notifications 
+=======
+  // NOTE: no onDelete Cascade here — we want to KEEP order history
+  // even if the variant is later deleted from the catalog
+
+  @@index([orderId])
+  @@schema("mini_e_commerce")
+}
+
+// ─── Notifications ────────────────────────────────────────────
+>>>>>>> origin/main
 
 model Notification {
   id        String    @id @default(cuid())
   type      NotifType
+<<<<<<< HEAD
   title     String    
   message   String    
   link      String?   
@@ -243,4 +403,23 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([userId, createdAt]) 
+=======
+  title     String    // short: "Order confirmed"
+  message   String    // full: "Your order #abc123 has been confirmed and is being prepared."
+  link      String?   // deep link: "/orders/clx123" or "/admin/orders/clx123"
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  // nullable userId → future support for broadcast/system notifications
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // optional orderId → link notification to a specific order for quick navigation
+  orderId String?
+  order   Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead]) // THE most important index — powers the bell unread count
+  @@index([userId, createdAt]) // fast notification inbox sorted by date
+  @@schema("mini_e_commerce")
+>>>>>>> origin/main
 }

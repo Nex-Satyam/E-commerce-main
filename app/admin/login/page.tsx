@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from 'next/navigation';
+<<<<<<< HEAD
 import { useRef,useState } from "react";
 import { signIn } from "next-auth/react";
 import toast from "react-hot-toast";
@@ -58,12 +59,56 @@ export default function AdminLoginPage() {
     }
 
     setIsLoading(true);
+=======
+import { useRef, useState } from "react";
+import { signIn } from "next-auth/react";
+import toast from "react-hot-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const loginSchema = z.object({
+  email: z.string().min(1, "Email address is required.").email("Please enter a valid email address."),
+  password: z.string().min(6, "Password must be at least 6 characters."),
+  rememberMe: z.boolean().optional(),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+
+export default function AdminLoginPage() {
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      rememberMe: false,
+    },
+    mode: "onChange",
+  });
+
+  async function onSubmit(data: LoginFormValues) {
+    setAuthError(null);
+>>>>>>> origin/main
 
     try {
       const result = await signIn("credentials", {
         redirect: false,
+<<<<<<< HEAD
         email: email.trim(),
         password: password,
+=======
+        email: data.email.trim(),
+        password: data.password,
+>>>>>>> origin/main
       });
 
       if (result?.error) {
@@ -76,6 +121,7 @@ export default function AdminLoginPage() {
         router.push("/admin/dashboard");
       }, 400);
     } catch (error) {
+<<<<<<< HEAD
       setErrors({
         password: error instanceof Error ? error.message : "Invalid email or password.",
       });
@@ -91,6 +137,12 @@ export default function AdminLoginPage() {
     window.setTimeout(() => submitButtonRef.current?.focus(), 0);
   }
 
+=======
+      setAuthError(error instanceof Error ? error.message : "Invalid email or password.");
+    }
+  }
+
+>>>>>>> origin/main
   const emailInputClass = [
     "h-10 w-full rounded-lg border bg-white px-3 text-sm text-zinc-900 shadow-sm outline-none transition",
     "placeholder:text-zinc-400 focus:border-transparent focus:ring-2 focus:ring-blue-500",
@@ -152,7 +204,11 @@ export default function AdminLoginPage() {
             <p className="mt-1 text-sm text-zinc-500">Sign in to your admin account</p>
           </div>
 
+<<<<<<< HEAD
           <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
+=======
+          <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
+>>>>>>> origin/main
             <div>
               <label htmlFor="admin-email" className="mb-1.5 block text-sm font-medium text-zinc-700">
                 Email address
@@ -160,12 +216,17 @@ export default function AdminLoginPage() {
               <input
                 id="admin-email"
                 type="email"
+<<<<<<< HEAD
                 value={email}
+=======
+                {...register("email")}
+>>>>>>> origin/main
                 placeholder="admin@nex.com"
                 autoComplete="email"
                 className={emailInputClass}
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? "admin-email-error" : undefined}
+<<<<<<< HEAD
                 onChange={(event) => {
                   setEmail(event.target.value);
                   setErrors((current) => ({ ...current, email: undefined }));
@@ -174,6 +235,12 @@ export default function AdminLoginPage() {
               {errors.email ? (
                 <p id="admin-email-error" role="alert" className="mt-1 text-xs text-red-500">
                   {errors.email}
+=======
+              />
+              {errors.email ? (
+                <p id="admin-email-error" role="alert" className="mt-1 text-xs text-red-500">
+                  {errors.email.message}
+>>>>>>> origin/main
                 </p>
               ) : null}
             </div>
@@ -189,6 +256,7 @@ export default function AdminLoginPage() {
                 <input
                   id="admin-password"
                   type={showPassword ? "text" : "password"}
+<<<<<<< HEAD
                   value={password}
                   placeholder="admin123"
                   autoComplete="current-password"
@@ -199,6 +267,14 @@ export default function AdminLoginPage() {
                     setPassword(event.target.value);
                     setErrors((current) => ({ ...current, password: undefined }));
                   }}
+=======
+                  {...register("password")}
+                  placeholder="admin123"
+                  autoComplete="current-password"
+                  className={passwordInputClass}
+                  aria-invalid={Boolean(errors.password) || Boolean(authError)}
+                  aria-describedby={errors.password ? "admin-password-error" : undefined}
+>>>>>>> origin/main
                 />
                 <button
                   type="button"
@@ -238,8 +314,17 @@ export default function AdminLoginPage() {
               </div>
               {errors.password ? (
                 <p id="admin-password-error" role="alert" className="mt-1 text-xs text-red-500">
+<<<<<<< HEAD
                   {errors.password}
                 </p>
+=======
+                  {errors.password.message}
+                </p>
+              ) : authError ? (
+                 <p role="alert" className="mt-1 text-xs text-red-500">
+                  {authError}
+                 </p>
+>>>>>>> origin/main
               ) : null}
             </div>
 
@@ -248,9 +333,14 @@ export default function AdminLoginPage() {
                 <input
                   id="remember-admin"
                   type="checkbox"
+<<<<<<< HEAD
                   checked={rememberMe}
                   className="size-4 rounded border-zinc-200 accent-zinc-900"
                   onChange={(event) => setRememberMe(event.target.checked)}
+=======
+                  {...register("rememberMe")}
+                  className="size-4 rounded border-zinc-200 accent-zinc-900"
+>>>>>>> origin/main
                 />
                 Remember me
               </label>
@@ -264,16 +354,26 @@ export default function AdminLoginPage() {
             </div>
 
             <button
+<<<<<<< HEAD
               ref={submitButtonRef}
               type="submit"
               disabled={isLoading || isSignedIn}
               aria-busy={isLoading}
+=======
+              type="submit"
+              disabled={isSubmitting || isSignedIn || !isValid}
+              aria-busy={isSubmitting}
+>>>>>>> origin/main
               className={[
                 "flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed",
                 isSignedIn ? "bg-green-500" : "bg-zinc-900 hover:bg-zinc-700 disabled:bg-zinc-900/70",
               ].join(" ")}
             >
+<<<<<<< HEAD
               {isLoading ? (
+=======
+              {isSubmitting ? (
+>>>>>>> origin/main
                 <>
                   <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                   Signing in...
@@ -285,6 +385,7 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
+<<<<<<< HEAD
 
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-zinc-100" />
@@ -312,6 +413,8 @@ export default function AdminLoginPage() {
               Fill credentials →
             </button>
           </div>
+=======
+>>>>>>> origin/main
         </div>
       </section>
     </main>

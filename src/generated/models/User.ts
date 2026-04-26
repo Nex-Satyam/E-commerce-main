@@ -12,7 +12,14 @@ import type * as runtime from "@prisma/client/runtime/client"
 import type * as $Enums from "../enums"
 import type * as Prisma from "../internal/prismaNamespace"
 
+<<<<<<< HEAD
 
+=======
+/**
+ * Model User
+ * 
+ */
+>>>>>>> origin/main
 export type UserModel = runtime.Types.Result.DefaultSelection<Prisma.$UserPayload>
 
 export type AggregateUser = {

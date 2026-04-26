@@ -26,6 +26,10 @@ export function BulkStockPage() {
     );
   }
 
+<<<<<<< HEAD
+=======
+  
+>>>>>>> origin/main
   useEffect(() => {
     let isMounted = true;
 

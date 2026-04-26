@@ -4,13 +4,21 @@ export type AdminOrder = {
   id: string;
   customerName: string;
   customerEmail: string;
+<<<<<<< HEAD
   address: {
+=======
+  address?: {
+>>>>>>> origin/main
     line1: string;
     line2?: string;
     city: string;
     state: string;
+<<<<<<< HEAD
     postalCode: string;
     country: string;
+=======
+    pincode: string;
+>>>>>>> origin/main
   };
   totalAmount: number;
   status: OrderStatus;
@@ -19,7 +27,13 @@ export type AdminOrder = {
   adminNote?: string;
   items: Array<{
     id: string;
+<<<<<<< HEAD
     productId: string;
+=======
+    productId?: string;
+    productSlug?: string;
+    productImage?: string | null;
+>>>>>>> origin/main
     variantId: string;
     productName: string;
     variantName: string;
@@ -81,6 +95,7 @@ function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+<<<<<<< HEAD
 export const adminCategories: AdminCategory[] = [
   { id: "cat_outerwear", name: "Outerwear" },
   { id: "cat_knitwear", name: "Knitwear" },
@@ -420,6 +435,13 @@ const orderSeed: AdminOrder[] = [
     ],
   },
 ];
+=======
+export const adminCategories: AdminCategory[] = [];
+
+const productSeed: AdminProduct[] = [];
+
+const orderSeed: AdminOrder[] = [];
+>>>>>>> origin/main
 
 const store = globalThis as typeof globalThis & {
   __adminProducts?: AdminProduct[];

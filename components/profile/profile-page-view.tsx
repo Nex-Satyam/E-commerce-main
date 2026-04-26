@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { ArrowLeft, BadgeCheck, MapPin, PencilLine, Save, ShieldCheck, Sparkles } from "lucide-react";
 import axios from "axios";
+<<<<<<< HEAD
 import { useSession } from "next-auth/react";
+=======
+import { useAuth, type UserProfile } from "@/components/auth/auth-provider";
+>>>>>>> origin/main
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +24,7 @@ function getInitials(name: string) {
 }
 
 export function ProfilePageView() {
+<<<<<<< HEAD
   const { data: session, status } = useSession();
   const user = session?.user;
   const initials = useMemo(() => getInitials(user?.name ?? "ASR"), [user?.name]);
@@ -28,6 +33,32 @@ export function ProfilePageView() {
     return <div>Loading...</div>;
   }
   if (!user) {
+=======
+  const { isLoggedIn, role, profile, updateProfile } = useAuth();
+  const [profileData, setProfileData] = useState<UserProfile | null>(profile);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [formState, setFormState] = useState<UserProfile | null>(profile);
+
+   useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const res = await axios.get("/api/user/profile");
+        console.log("Profile data fetched from API:", res.data);
+        setProfileData(res.data);
+        setFormState(res.data);
+      } catch {
+        setProfileData(null);
+        setFormState(null);
+      }
+    }
+    fetchProfile();
+  }, []);
+
+  const initials = useMemo(() => getInitials(profileData?.name ?? "ASR"), [profileData?.name]);
+
+  if (!profileData || !formState) {
+>>>>>>> origin/main
     return (
       <section className="profile-page">
         <div className="profile-breadcrumb">
@@ -35,13 +66,25 @@ export function ProfilePageView() {
             <ArrowLeft className="size-4" /> Back to home
           </Link>
         </div>
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
         <Card className="profile-empty-card py-0 shadow-none">
           <CardContent className="profile-empty-content">
             <div className="profile-empty-copy">
               <p className="eyebrow">Profile Access</p>
               <h1>Login to see your profile details.</h1>
+<<<<<<< HEAD
               <p>Your profile page shows saved account information, contact details, and editable user preferences once you are signed in.</p>
             </div>
+=======
+              <p>
+                Your profile page shows saved account information, contact details, and editable user preferences once you are signed in.
+              </p>
+            </div>
+
+>>>>>>> origin/main
             <div className="profile-empty-actions">
               <CtaButton asChild>
                 <Link href="/login">Login</Link>

@@ -1,5 +1,9 @@
 import { products } from "@/components/home/home-data";
+<<<<<<< HEAD
 import ProductCard from "@/components/home/product-card";
+=======
+import { ProductCard } from "@/components/home/product-card";
+>>>>>>> origin/main
 import { SectionHeading } from "@/components/home/section-heading";
 
 export function ProductsSection() {
