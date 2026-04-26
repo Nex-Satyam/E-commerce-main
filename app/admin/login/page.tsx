@@ -1,69 +1,48 @@
 "use client";
 import { useRouter } from 'next/navigation';
-import { useRef,useState } from "react";
+import { useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import toast from "react-hot-toast";
-const MOCK_ADMIN = {
-  email: "admin@nex.com",
-  password: "admin123",
-  name: "maiAdminHoon",
-  role: "ADMIN",
-};
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
-type FieldErrors = {
-  email?: string;
-  password?: string;
-};
+const loginSchema = z.object({
+  email: z.string().min(1, "Email address is required.").email("Please enter a valid email address."),
+  password: z.string().min(6, "Password must be at least 6 characters."),
+  rememberMe: z.boolean().optional(),
+});
 
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const submitButtonRef = useRef<HTMLButtonElement>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  function validateForm() {
-    const nextErrors: FieldErrors = {};
-    const trimmedEmail = email.trim();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      rememberMe: false,
+    },
+    mode: "onChange",
+  });
 
-    if (!trimmedEmail) {
-      nextErrors.email = "Email address is required.";
-    } else if (!isValidEmail(trimmedEmail)) {
-      nextErrors.email = "Please enter a valid email address.";
-    }
-
-    if (!password) {
-      nextErrors.password = "Password is required.";
-    } else if (password.length < 6) {
-      nextErrors.password = "Password must be at least 6 characters.";
-    }
-
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsLoading(true);
+  async function onSubmit(data: LoginFormValues) {
+    setAuthError(null);
 
     try {
       const result = await signIn("credentials", {
         redirect: false,
-        email: email.trim(),
-        password: password,
+        email: data.email.trim(),
+        password: data.password,
       });
 
       if (result?.error) {
@@ -76,19 +55,8 @@ export default function AdminLoginPage() {
         router.push("/admin/dashboard");
       }, 400);
     } catch (error) {
-      setErrors({
-        password: error instanceof Error ? error.message : "Invalid email or password.",
-      });
-    } finally {
-      setIsLoading(false);
+      setAuthError(error instanceof Error ? error.message : "Invalid email or password.");
     }
-  }
-
-  function fillDemoCredentials() {
-    setEmail(MOCK_ADMIN.email);
-    setPassword(MOCK_ADMIN.password);
-    setErrors({});
-    window.setTimeout(() => submitButtonRef.current?.focus(), 0);
   }
 
   const emailInputClass = [
@@ -152,7 +120,7 @@ export default function AdminLoginPage() {
             <p className="mt-1 text-sm text-zinc-500">Sign in to your admin account</p>
           </div>
 
-          <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
+          <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
             <div>
               <label htmlFor="admin-email" className="mb-1.5 block text-sm font-medium text-zinc-700">
                 Email address
@@ -160,20 +128,16 @@ export default function AdminLoginPage() {
               <input
                 id="admin-email"
                 type="email"
-                value={email}
+                {...register("email")}
                 placeholder="admin@nex.com"
                 autoComplete="email"
                 className={emailInputClass}
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? "admin-email-error" : undefined}
-                onChange={(event) => {
-                  setEmail(event.target.value);
-                  setErrors((current) => ({ ...current, email: undefined }));
-                }}
               />
               {errors.email ? (
                 <p id="admin-email-error" role="alert" className="mt-1 text-xs text-red-500">
-                  {errors.email}
+                  {errors.email.message}
                 </p>
               ) : null}
             </div>
@@ -189,16 +153,12 @@ export default function AdminLoginPage() {
                 <input
                   id="admin-password"
                   type={showPassword ? "text" : "password"}
-                  value={password}
+                  {...register("password")}
                   placeholder="admin123"
                   autoComplete="current-password"
                   className={passwordInputClass}
-                  aria-invalid={Boolean(errors.password)}
+                  aria-invalid={Boolean(errors.password) || Boolean(authError)}
                   aria-describedby={errors.password ? "admin-password-error" : undefined}
-                  onChange={(event) => {
-                    setPassword(event.target.value);
-                    setErrors((current) => ({ ...current, password: undefined }));
-                  }}
                 />
                 <button
                   type="button"
@@ -238,8 +198,12 @@ export default function AdminLoginPage() {
               </div>
               {errors.password ? (
                 <p id="admin-password-error" role="alert" className="mt-1 text-xs text-red-500">
-                  {errors.password}
+                  {errors.password.message}
                 </p>
+              ) : authError ? (
+                 <p role="alert" className="mt-1 text-xs text-red-500">
+                  {authError}
+                 </p>
               ) : null}
             </div>
 
@@ -248,9 +212,8 @@ export default function AdminLoginPage() {
                 <input
                   id="remember-admin"
                   type="checkbox"
-                  checked={rememberMe}
+                  {...register("rememberMe")}
                   className="size-4 rounded border-zinc-200 accent-zinc-900"
-                  onChange={(event) => setRememberMe(event.target.checked)}
                 />
                 Remember me
               </label>
@@ -264,16 +227,15 @@ export default function AdminLoginPage() {
             </div>
 
             <button
-              ref={submitButtonRef}
               type="submit"
-              disabled={isLoading || isSignedIn}
-              aria-busy={isLoading}
+              disabled={isSubmitting || isSignedIn || !isValid}
+              aria-busy={isSubmitting}
               className={[
                 "flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed",
                 isSignedIn ? "bg-green-500" : "bg-zinc-900 hover:bg-zinc-700 disabled:bg-zinc-900/70",
               ].join(" ")}
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 <>
                   <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                   Signing in...
@@ -285,33 +247,6 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
-
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-zinc-100" />
-            <span className="text-xs text-zinc-400">or</span>
-            <div className="h-px flex-1 bg-zinc-100" />
-          </div>
-
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 shadow-sm">
-            <p className="mb-2 text-xs font-medium text-zinc-500">Demo credentials</p>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="text-zinc-500">Email</span>
-                <code className="font-mono text-zinc-700">{MOCK_ADMIN.email}</code>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="text-zinc-500">Password</span>
-                <code className="font-mono text-zinc-700">{MOCK_ADMIN.password}</code>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="mt-3 text-xs text-blue-500 hover:underline"
-              onClick={fillDemoCredentials}
-            >
-              Fill credentials →
-            </button>
-          </div>
         </div>
       </section>
     </main>

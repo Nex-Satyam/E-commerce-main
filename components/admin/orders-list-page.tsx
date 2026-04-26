@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
-import { Download, Eye } from "lucide-react";
+import { Download, Eye, ShoppingBag } from "lucide-react";
 import type { AdminOrder, OrderStatus } from "@/components/admin/types";
 import { formatCurrency, formatDateInput, formatShortDate, orderStatusClass } from "@/components/admin/types";
+import { SkeletonTable } from "./ui/skeleton-table";
+import { EmptyState } from "./ui/empty-state";
+import { Pagination } from "./ui/pagination";
 
 const statuses: Array<{ label: string; value: "" | OrderStatus }> = [
   { label: "All", value: "" },
@@ -27,6 +30,7 @@ export function OrdersListPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const from = formatDateInput(range?.from);
   const to = formatDateInput(range?.to);
@@ -41,6 +45,7 @@ export function OrdersListPage() {
 
   useEffect(() => {
     async function loadOrders() {
+      setLoading(true);
       const params = new URLSearchParams({
         status,
         search,
@@ -53,6 +58,7 @@ export function OrdersListPage() {
       const data = await response.json();
       setOrders(data.orders ?? []);
       setTotal(data.total ?? 0);
+      setLoading(false);
     }
 
     loadOrders();
@@ -153,83 +159,66 @@ export function OrdersListPage() {
         </div>
       </section>
 
-      <section className="rounded-md border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-5 py-3">Order ID</th>
-                <th className="px-5 py-3">Customer</th>
-                <th className="px-5 py-3">Items count</th>
-                <th className="px-5 py-3">Total</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Date</th>
-                <th className="px-5 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {orders.map((order) => (
-                <tr key={order.id} className="hover:bg-slate-50">
-                  <td className="px-5 py-4 font-mono text-slate-700">{order.id}</td>
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-slate-950">{order.customerName}</p>
-                    <p className="text-xs text-slate-500">{order.customerEmail ?? "No email"}</p>
-                  </td>
-                  <td className="px-5 py-4 text-slate-600">
-                    {order.items.reduce((sum, item) => sum + item.quantity, 0)}
-                  </td>
-                  <td className="px-5 py-4 text-slate-600">{formatCurrency(order.totalAmount)}</td>
-                  <td className="px-5 py-4">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${orderStatusClass[order.status]}`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-slate-600">{formatShortDate(order.createdAt)}</td>
-                  <td className="px-5 py-4">
-                    <Link
-                      href={`/admin/orders/${order.id}`}
-                      className="inline-flex size-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100"
-                      aria-label={`View order ${order.id}`}
-                    >
-                      <Eye className="size-4" />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {orders.length === 0 ? (
+      {loading ? (
+        <SkeletonTable columns={7} rows={10} />
+      ) : orders.length === 0 ? (
+        <EmptyState 
+          title="No orders found"
+          description={search || status || from || to ? "No orders matched your filters. Try adjusting them." : "You don't have any orders yet."}
+          icon={<ShoppingBag className="size-10" />}
+        />
+      ) : (
+        <section className="rounded-md border border-slate-200 bg-white shadow-sm flex flex-col">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">
-                    No orders found.
-                  </td>
+                  <th className="px-5 py-3">Order ID</th>
+                  <th className="px-5 py-3">Customer</th>
+                  <th className="px-5 py-3">Items count</th>
+                  <th className="px-5 py-3">Total</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Date</th>
+                  <th className="px-5 py-3">Actions</th>
                 </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
-          <span>
-            Page {page} of {totalPages} · {total} orders
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={page === 1}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              className="h-9 rounded-md border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={page === totalPages}
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              className="h-9 rounded-md border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Next
-            </button>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {orders.map((order) => (
+                  <tr key={order.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-4 font-mono text-slate-700">{order.id}</td>
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-slate-950">{order.customerName}</p>
+                      <p className="text-xs text-slate-500">{order.customerEmail ?? "No email"}</p>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {order.items.reduce((sum, item) => sum + item.quantity, 0)}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{formatCurrency(order.totalAmount)}</td>
+                    <td className="px-5 py-4">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${orderStatusClass[order.status]}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{formatShortDate(order.createdAt)}</td>
+                    <td className="px-5 py-4">
+                      <Link
+                        href={`/admin/orders/${order.id}`}
+                        className="inline-flex size-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100"
+                        aria-label={`View order ${order.id}`}
+                      >
+                        <Eye className="size-4" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+          <div className="border-t border-slate-200 px-5 py-4">
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

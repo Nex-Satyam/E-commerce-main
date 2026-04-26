@@ -26,6 +26,7 @@ export function BulkStockPage() {
     );
   }
 
+  
   useEffect(() => {
     let isMounted = true;
 
