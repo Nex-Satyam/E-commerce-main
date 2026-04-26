@@ -1,31 +1,68 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, Save, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
-import type { AdminCategory, AdminProduct, AdminProductImage, AdminProductVariant } from "@/components/admin/types";
+import type { AdminCategory, AdminProduct } from "@/components/admin/types";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 type ProductFormPageProps = {
   productId?: string;
 };
 
-type ImageDraft = AdminProductImage;
-type VariantDraft = AdminProductVariant & { skuError?: string };
+const variantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  price: z.coerce.number().min(0, "Price must be >= 0"),
+  stock: z.coerce.number().min(0, "Stock must be >= 0"),
+  sku: z.string().min(1, "SKU is required"),
+  skuError: z.string().optional()
+});
 
-const emptyVariant = (): VariantDraft => ({
+const imageSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  isPrimary: z.boolean(),
+  sortOrder: z.number()
+});
+
+const productSchema = z.object({
+  name: z.string().min(1, "Product name is required"),
+  categoryId: z.string().min(1, "Category is required"),
+  description: z.string().optional(),
+  isActive: z.boolean().default(true),
+  images: z.array(imageSchema),
+  variants: z.array(variantSchema).min(1, "At least one variant is required")
+}).superRefine((data, ctx) => {
+  const skus = data.variants.map(v => v.sku.trim().toLowerCase()).filter(Boolean);
+  if (skus.length !== new Set(skus).size) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Duplicate SKUs found",
+      path: ["variants"]
+    });
+  }
+});
+
+type ProductFormValues = z.infer<typeof productSchema>;
+
+const emptyVariant = () => ({
   id: `new_${crypto.randomUUID()}`,
   name: "",
   price: 0,
   stock: 0,
   sku: "",
+  skuError: undefined
 });
 
-const emptyImage = (): ImageDraft => ({
+const emptyImage = () => ({
   id: `new_${crypto.randomUUID()}`,
   url: "",
   isPrimary: false,
@@ -38,7 +75,7 @@ function SortableImageRow({
   onPrimary,
   onRemove,
 }: {
-  image: ImageDraft;
+  image: { id: string; url: string; isPrimary: boolean };
   onChange: (value: string) => void;
   onPrimary: () => void;
   onRemove: () => void;
@@ -89,22 +126,57 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
   const router = useRouter();
   const isEditing = Boolean(productId);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [isActive, setIsActive] = useState(true);
-  const [images, setImages] = useState<ImageDraft[]>([]);
-  const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant()]);
-  const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      name: "",
+      categoryId: "",
+      description: "",
+      isActive: true,
+      images: [],
+      variants: [emptyVariant()],
+    },
+    mode: "onChange"
+  });
+
+  const { append: appendImage, remove: removeImage, move: moveImage, update: updateImage } = useFieldArray({
+    control,
+    name: "images",
+    keyName: "_key"
+  });
+
+  const { fields: variantFields, append: appendVariant, remove: removeVariant, update: updateVariant } = useFieldArray({
+    control,
+    name: "variants",
+    keyName: "_key"
+  });
+
+  const images = watch("images");
+  const variants = watch("variants");
 
   useEffect(() => {
     async function load() {
-      const categoriesResponse = await fetch("/api/admin/categories");
-      const categoriesData = await categoriesResponse.json();
-      setCategories(categoriesData.categories ?? []);
-      setCategoryId((current) => current || categoriesData.categories?.[0]?.id || "");
+      try {
+        const categoriesResponse = await fetch("/api/admin/categories");
+        const categoriesData = await categoriesResponse.json();
+        setCategories(categoriesData.categories ?? []);
+        const defaultCatId = categoriesData.categories?.[0]?.id || "";
+        
+        if (!productId) {
+          setValue("categoryId", defaultCatId);
+          setIsLoading(false);
+          return;
+        }
 
-      if (productId) {
         const productResponse = await fetch(`/api/admin/products/${productId}`);
         if (!productResponse.ok) {
           toast.error("Product not found.");
@@ -113,108 +185,102 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
         }
         const data = (await productResponse.json()) as { product: AdminProduct };
         const product = data.product;
-        setName(product.name);
-        setDescription(product.description);
-        setCategoryId(product.categoryId);
-        setIsActive(product.isActive);
-        setImages(product.images);
-        setVariants(product.variants.map((variant) => ({ ...variant })));
+        setValue("name", product.name);
+        setValue("description", product.description || "");
+        setValue("categoryId", product.categoryId);
+        setValue("isActive", product.isActive);
+        setValue("images", product.images.map(img => ({ ...img })));
+        setValue("variants", product.variants.map(variant => ({ ...variant, skuError: undefined })));
+      } catch (err) {
+         toast.error("Error loading product data.");
+      } finally {
+        setIsLoading(false);
       }
     }
 
     load();
-  }, [productId, router]);
+  }, [productId, router, setValue]);
 
-  const hasSkuErrors = useMemo(() => variants.some((variant) => Boolean(variant.skuError)), [variants]);
-
-  function updateImage(id: string, patch: Partial<ImageDraft>) {
-    setImages((current) => current.map((image) => (image.id === id ? { ...image, ...patch } : image)));
+  function handleImageChange(index: number, url: string) {
+    updateImage(index, { ...images[index], url });
   }
 
-  function removeImage(id: string) {
-    setImages((current) => {
-      const next = current.filter((image) => image.id !== id);
-      if (next.length && !next.some((image) => image.isPrimary)) {
-        next[0] = { ...next[0], isPrimary: true };
+  function handleSetPrimaryImage(index: number) {
+    const newImages = images.map((img, i) => ({ ...img, isPrimary: i === index }));
+    setValue("images", newImages);
+  }
+
+  function handleRemoveImage(index: number) {
+    removeImage(index);
+    // ensure one is primary if there are any left
+    setTimeout(() => {
+      const current = watch("images");
+      if (current.length > 0 && !current.some(img => img.isPrimary)) {
+        setValue("images", current.map((img, i) => ({ ...img, isPrimary: i === 0 })));
       }
-      return next;
-    });
+    }, 0);
   }
 
-  function setPrimaryImage(id: string) {
-    setImages((current) => current.map((image) => ({ ...image, isPrimary: image.id === id })));
-  }
-
-  function updateVariant(id: string, patch: Partial<VariantDraft>) {
-    setVariants((current) => current.map((variant) => (variant.id === id ? { ...variant, ...patch } : variant)));
-  }
-
-  function removeVariant(id: string) {
-    setVariants((current) => (current.length === 1 ? current : current.filter((variant) => variant.id !== id)));
-  }
-
-  async function validateSku(variant: VariantDraft) {
+  async function validateSku(index: number) {
+    const variant = variants[index];
     if (!variant.sku.trim()) {
-      updateVariant(variant.id, { skuError: "SKU is required." });
+      updateVariant(index, { ...variant, skuError: "SKU is required." });
       return;
     }
 
     const duplicateInForm = variants.some(
-      (item) => item.id !== variant.id && item.sku.trim().toLowerCase() === variant.sku.trim().toLowerCase()
+      (item, i) => i !== index && item.sku.trim().toLowerCase() === variant.sku.trim().toLowerCase()
     );
 
     if (duplicateInForm) {
-      updateVariant(variant.id, { skuError: "SKU is already used in this form." });
+      updateVariant(index, { ...variant, skuError: "SKU is already used in this form." });
       return;
     }
 
-    const params = new URLSearchParams({ sku: variant.sku, excludeVariantId: variant.id });
-    const response = await fetch(`/api/admin/products/sku?${params.toString()}`);
-    const data = await response.json();
-    updateVariant(variant.id, { skuError: data.unique ? undefined : "SKU already exists." });
+    try {
+      const params = new URLSearchParams({ sku: variant.sku, excludeVariantId: variant.id });
+      const response = await fetch(`/api/admin/products/sku?${params.toString()}`);
+      const data = await response.json();
+      updateVariant(index, { ...variant, skuError: data.unique ? undefined : "SKU already exists." });
+    } catch(e) {
+      // ignore
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setImages((current) => {
-      const oldIndex = current.findIndex((image) => image.id === active.id);
-      const newIndex = current.findIndex((image) => image.id === over.id);
-      return arrayMove(current, oldIndex, newIndex).map((image, index) => ({ ...image, sortOrder: index }));
-    });
+    
+    const oldIndex = images.findIndex((image) => image.id === active.id);
+    const newIndex = images.findIndex((image) => image.id === over.id);
+    
+    if (oldIndex !== -1 && newIndex !== -1) {
+       moveImage(oldIndex, newIndex);
+       setTimeout(() => {
+         const current = watch("images");
+         setValue("images", current.map((img, i) => ({ ...img, sortOrder: i })));
+       }, 0);
+    }
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!name.trim()) {
-      toast.error("Product name is required.");
+  async function onSubmit(data: ProductFormValues) {
+    if (data.variants.some(v => v.skuError)) {
+      toast.error("Please fix SKU errors before saving.");
       return;
     }
 
-    if (!categoryId) {
-      toast.error("Choose a category.");
-      return;
-    }
-
-    if (hasSkuErrors || variants.some((variant) => !variant.sku.trim())) {
-      toast.error("Fix variant SKUs before saving.");
-      return;
-    }
-
-    setSaving(true);
     const payload = {
-      name,
-      description,
-      categoryId,
-      isActive,
-      images: images.map((image, index) => ({
+      name: data.name,
+      description: data.description,
+      categoryId: data.categoryId,
+      isActive: data.isActive,
+      images: data.images.map((image, index) => ({
         id: image.id.startsWith("new_") ? undefined : image.id,
         url: image.url,
         isPrimary: image.isPrimary,
         sortOrder: index,
       })),
-      variants: variants.map((variant) => ({
+      variants: data.variants.map((variant) => ({
         id: variant.id.startsWith("new_") ? undefined : variant.id,
         name: variant.name,
         price: Number(variant.price),
@@ -223,25 +289,30 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
       })),
     };
 
-    const response = await fetch(isEditing ? `/api/admin/products/${productId}` : "/api/admin/products", {
-      method: isEditing ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await fetch(isEditing ? `/api/admin/products/${productId}` : "/api/admin/products", {
+        method: isEditing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    setSaving(false);
+      if (!response.ok) {
+        const err = await response.json();
+        toast.error(err.error || "Unable to save product.");
+        return;
+      }
 
-    if (!response.ok) {
-      toast.error("Unable to save product.");
-      return;
+      toast.success("Product saved.");
+      router.push("/admin/products");
+    } catch(e) {
+      toast.error("Network error");
     }
-
-    toast.success("Product saved.");
-    router.push("/admin/products");
   }
 
+  if (isLoading) return null;
+
   return (
-    <form className="grid gap-6" onSubmit={handleSubmit}>
+    <form className="grid gap-6" onSubmit={handleSubmit(onSubmit)}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
@@ -251,11 +322,11 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
         </div>
         <button
           type="submit"
-          disabled={saving}
+          disabled={isSubmitting}
           className="inline-flex h-10 items-center gap-2 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
         >
-          <Save className="size-4" />
-          {saving ? "Saving..." : "Save product"}
+          {isSubmitting ? <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Save className="size-4" />}
+          {isSubmitting ? "Saving..." : "Save product"}
         </button>
       </div>
 
@@ -264,17 +335,15 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             Product name
             <input
-              required
-              value={name}
-              onChange={(event) => setName(event.target.value)}
+              {...register("name")}
               className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
+            {errors.name && <span className="text-xs text-red-500 normal-case">{errors.name.message}</span>}
           </label>
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             Category
             <select
-              value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
+              {...register("categoryId")}
               className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
               {categories.map((category) => (
@@ -283,22 +352,21 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
                 </option>
               ))}
             </select>
+            {errors.categoryId && <span className="text-xs text-red-500 normal-case">{errors.categoryId.message}</span>}
           </label>
         </div>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Description
           <textarea
-            value={description}
+            {...register("description")}
             rows={4}
-            onChange={(event) => setDescription(event.target.value)}
             className="rounded-md border border-slate-200 px-3 py-2 text-sm font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </label>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
           <input
             type="checkbox"
-            checked={isActive}
-            onChange={(event) => setIsActive(event.target.checked)}
+            {...register("isActive")}
             className="size-4 accent-slate-900"
           />
           Active
@@ -310,9 +378,7 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
           <h2 className="text-lg font-semibold text-slate-950">Images</h2>
           <button
             type="button"
-            onClick={() =>
-              setImages((current) => [...current, { ...emptyImage(), isPrimary: current.length === 0, sortOrder: current.length }])
-            }
+            onClick={() => appendImage({ ...emptyImage(), isPrimary: images.length === 0, sortOrder: images.length })}
             className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             <Plus className="size-4" />
@@ -320,19 +386,18 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
           </button>
         </div>
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={images.map((image) => image.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={images.map((i: any) => i.id)} strategy={verticalListSortingStrategy}>
             <div className="grid gap-3">
-              {images.map((image) => (
+              {images.map((image: any, index: number) => (
                 <SortableImageRow
                   key={image.id}
                   image={image}
-                  onChange={(url) => updateImage(image.id, { url })}
-                  onPrimary={() => setPrimaryImage(image.id)}
-                  onRemove={() => removeImage(image.id)}
+                  onChange={(url) => handleImageChange(index, url)}
+                  onPrimary={() => handleSetPrimaryImage(index)}
+                  onRemove={() => handleRemoveImage(index)}
                 />
               ))}
             </div>
-            
           </SortableContext>
         </DndContext>
       </section>
@@ -342,67 +407,73 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
           <h2 className="text-lg font-semibold text-slate-950">Variants</h2>
           <button
             type="button"
-            onClick={() => setVariants((current) => [...current, emptyVariant()])}
+            onClick={() => appendVariant(emptyVariant())}
             className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             <Plus className="size-4" />
             Add row
           </button>
         </div>
+        {errors.variants?.root && <div className="text-sm text-red-600 normal-case">{errors.variants.root.message}</div>}
         <div className="grid gap-3">
-          {variants.map((variant) => (
-            <div key={variant.id} className="grid gap-3 rounded-md border border-slate-200 p-3 md:grid-cols-[1fr_140px_120px_1fr_auto] md:items-start">
-              <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Name
-                <input
-                  value={variant.name}
-                  onChange={(event) => updateVariant(variant.id, { name: event.target.value })}
-                  className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-              <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Price
-                <input
-                  type="number"
-                  min="0"
-                  value={variant.price}
-                  onChange={(event) => updateVariant(variant.id, { price: Number(event.target.value) })}
-                  className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-              <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Stock
-                <input
-                  type="number"
-                  min="0"
-                  value={variant.stock}
-                  onChange={(event) => updateVariant(variant.id, { stock: Number(event.target.value) })}
-                  className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-              <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                SKU
-                <input
-                  value={variant.sku}
-                  onChange={(event) => updateVariant(variant.id, { sku: event.target.value, skuError: undefined })}
-                  onBlur={() => validateSku(variant)}
-                  className={[
-                    "h-10 rounded-md border px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100",
-                    variant.skuError ? "border-red-300" : "border-slate-200",
-                  ].join(" ")}
-                />
-                {variant.skuError ? <span className="text-xs normal-case tracking-normal text-red-600">{variant.skuError}</span> : null}
-              </label>
-              <button
-                type="button"
-                aria-label="Remove variant"
-                onClick={() => removeVariant(variant.id)}
-                className="mt-5 inline-flex size-9 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </div>
-          ))}
+          {variantFields.map((field, index) => {
+            const variantError = errors.variants?.[index];
+            const manualSkuError = variants[index]?.skuError;
+            return (
+              <div key={field.id} className="grid gap-3 rounded-md border border-slate-200 p-3 md:grid-cols-[1fr_140px_120px_1fr_auto] md:items-start">
+                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Name
+                  <input
+                    {...register(`variants.${index}.name`)}
+                    className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Price
+                  <input
+                    type="number"
+                    min="0"
+                    {...register(`variants.${index}.price`)}
+                    className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                  {variantError?.price && <span className="text-xs normal-case tracking-normal text-red-600">{variantError.price.message}</span>}
+                </label>
+                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Stock
+                  <input
+                    type="number"
+                    min="0"
+                    {...register(`variants.${index}.stock`)}
+                    className="h-10 rounded-md border border-slate-200 px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                  {variantError?.stock && <span className="text-xs normal-case tracking-normal text-red-600">{variantError.stock.message}</span>}
+                </label>
+                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  SKU
+                  <input
+                    {...register(`variants.${index}.sku`, {
+                      onBlur: () => validateSku(index),
+                      onChange: () => updateVariant(index, { ...variants[index], skuError: undefined })
+                    })}
+                    className={[
+                      "h-10 rounded-md border px-3 text-sm font-normal normal-case tracking-normal text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100",
+                      (variantError?.sku || manualSkuError) ? "border-red-300" : "border-slate-200",
+                    ].join(" ")}
+                  />
+                  {(variantError?.sku || manualSkuError) ? <span className="text-xs normal-case tracking-normal text-red-600">{variantError?.sku?.message || manualSkuError}</span> : null}
+                </label>
+                <button
+                  type="button"
+                  aria-label="Remove variant"
+                  onClick={() => variantFields.length > 1 ? removeVariant(index) : null}
+                  className="mt-5 inline-flex size-9 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  disabled={variantFields.length <= 1}
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       </section>
     </form>

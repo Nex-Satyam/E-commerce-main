@@ -1,4 +1,4 @@
-import { getUserById, updateUserProfile } from "@/services/user.service";
+  import { getUserById, updateUserProfile } from "@/services/user.service";
 
 export const getProfileController = async (userId: string) => {
   if (!userId) throw new Error("User ID missing");
@@ -20,8 +20,6 @@ export const updateProfileController = async (userId: string, body: any) => {
     image: body.image,
     bio: body.bio,
     address: body.address,
-    dateOfBirth: body.dateOfBirth
-      ? new Date(body.dateOfBirth)
-      : null,
+    
   });
 };

@@ -4,20 +4,30 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
-  const hashedPassword = await bcrypt.hash("admin123", 10);
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    console.log("Skipping admin creation: ADMIN_EMAIL and ADMIN_PASSWORD must be provided in .env");
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@nex.com" },
+    where: { email: adminEmail },
     update: {
       name: "Admin",
       password: hashedPassword,
       role: "ADMIN",
+      // isSuperAdmin: true,
     },
     create: {
       name: "Admin",
-      email: "admin@nex.com",
+      email: adminEmail,
       password: hashedPassword,
       role: "ADMIN",
+      // isSuperAdmin: true,
     },
   });
 

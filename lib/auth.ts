@@ -1,54 +1,75 @@
-import NextAuth from "next-auth";
+import NextAuth, { type AuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcrypt";
 import { prisma } from "./prisma";
 
-
-import type { AuthOptions, Session, User } from "next-auth";
-
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role?: string;
-      isSuperAdmin?: boolean;
+      role: string;
       name?: string | null;
       email?: string | null;
       image?: string | null;
     };
   }
+
   interface User {
     id: string;
-    role?: string;
-    isSuperAdmin?: boolean;
+    role: string;
     name?: string | null;
     email?: string | null;
     image?: string | null;
     password?: string | null;
+    isBanned?: boolean; // optional (safe)
   }
 }
 
-const authOptions: AuthOptions = {
-  session: { strategy: "jwt" as const },
+export const authOptions: AuthOptions = {
+  session: { strategy: "jwt" },
 
   providers: [
     Credentials({
+      name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "you@example.com" },
+        email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
+
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
+
         if (!user || !user.password) return null;
-        const isValid = await bcrypt.compare(credentials.password, user.password);
+
+        // Optional: only if column exists
+        if ("isBanned" in user && user.isBanned) {
+          throw new Error("Your account has been banned.");
+        }
+
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
+
         if (!isValid) return null;
-        return user as any;
+
+        // Return only safe fields
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        };
       },
     }),
+
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -56,22 +77,24 @@ const authOptions: AuthOptions = {
   ],
 
   callbacks: {
-    async jwt({ token, user }: { token: any; user?: any }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+        token.role = (user as any).role;
       }
       return token;
     },
 
-    async session({ session, token }: { session: any; token: any }) {
+    async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id as string;
-        (session.user as any).role = token.role as string;
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
       }
       return session;
     },
   },
-};
 
-export { authOptions };
+  pages: {
+    signIn: "/login", // optional custom page
+  },
+};

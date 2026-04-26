@@ -3,10 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Edit, PackagePlus } from "lucide-react";
+import { Copy, Edit, PackagePlus, Box } from "lucide-react";
 import toast from "react-hot-toast";
 import type { AdminCategory, AdminProduct, ProductListResponse } from "@/components/admin/types";
 import { productPriceRange, productStockTotal } from "@/components/admin/types";
+import { SkeletonTable } from "./ui/skeleton-table";
+import { EmptyState } from "./ui/empty-state";
+import { Pagination } from "./ui/pagination";
 
 const pageSize = 20;
 
@@ -31,20 +34,29 @@ export function ProductsListPage() {
 
   useEffect(() => {
     async function loadProducts() {
-      setLoading(true);
-      const params = new URLSearchParams({
-        search,
-        category,
-        active,
-        page: String(page),
-        limit: String(pageSize),
-      });
-      const response = await fetch(`/api/admin/products?${params.toString()}`);
-      const data = (await response.json()) as ProductListResponse;
-      setProducts(data.products);
-      setCategories(data.categories);
-      setTotal(data.total);
-      setLoading(false);
+      try {
+        setLoading(true);
+        const params = new URLSearchParams({
+          search,
+          category,
+          active,
+          page: String(page),
+          limit: String(pageSize),
+        });
+        const response = await fetch(`/api/admin/products?${params.toString()}`);
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({ error: "Failed to load products" }));
+          throw new Error(err.error || "Failed to load products");
+        }
+        const data = (await response.json()) as ProductListResponse;
+        setProducts(data.products);
+        setCategories(data.categories);
+        setTotal(data.total);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to load products");
+      } finally {
+        setLoading(false);
+      }
     }
 
     loadProducts();
@@ -151,113 +163,98 @@ export function ProductsListPage() {
         </div>
       </section>
 
-      <section className="rounded-md border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-5 py-3">Image</th>
-                <th className="px-5 py-3">Name</th>
-                <th className="px-5 py-3">Category</th>
-                <th className="px-5 py-3">Variants</th>
-                <th className="px-5 py-3">Price range</th>
-                <th className="px-5 py-3">Stock total</th>
-                <th className="px-5 py-3">Active</th>
-                <th className="px-5 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {products.map((product) => {
-                const primaryImage = product.images.find((image) => image.isPrimary) ?? product.images[0];
-                return (
-                  <tr key={product.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-4">
-                      <div className="relative size-12 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
-                        {primaryImage ? (
-                          <Image src={primaryImage.url} alt="" fill className="object-cover" sizes="48px" />
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 font-medium text-slate-950">{product.name}</td>
-                    <td className="px-5 py-4 text-slate-600">{product.category.name}</td>
-                    <td className="px-5 py-4 text-slate-600">{product.variants.length}</td>
-                    <td className="px-5 py-4 text-slate-600">{productPriceRange(product)}</td>
-                    <td className="px-5 py-4 text-slate-600">{productStockTotal(product)}</td>
-                    <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={product.isActive}
-                        onClick={() => toggleActive(product, !product.isActive)}
-                        className={[
-                          "relative h-6 w-11 rounded-full transition",
-                          product.isActive ? "bg-green-500" : "bg-slate-300",
-                        ].join(" ")}
-                      >
-                        <span
-                          className={[
-                            "absolute top-1 size-4 rounded-full bg-white transition",
-                            product.isActive ? "left-6" : "left-1",
-                          ].join(" ")}
-                        />
-                      </button>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/admin/products/${product.id}/edit`}
-                          aria-label={`Edit ${product.name}`}
-                          className="inline-flex size-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100"
-                        >
-                          <Edit className="size-4" />
-                        </Link>
+      {loading ? (
+        <SkeletonTable columns={8} rows={10} />
+      ) : products.length === 0 ? (
+        <EmptyState 
+          title="No products found"
+          description={search || category || active ? "No products matched your filters. Try adjusting them." : "You haven't added any products yet."}
+          actionLabel={(!search && !category && !active) ? "Add your first product" : undefined}
+          actionHref="/admin/products/new"
+          icon={<Box className="size-10" />}
+        />
+      ) : (
+        <section className="rounded-md border border-slate-200 bg-white shadow-sm flex flex-col">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-5 py-3">Image</th>
+                  <th className="px-5 py-3">Name</th>
+                  <th className="px-5 py-3">Category</th>
+                  <th className="px-5 py-3">Variants</th>
+                  <th className="px-5 py-3">Price range</th>
+                  <th className="px-5 py-3">Stock total</th>
+                  <th className="px-5 py-3">Active</th>
+                  <th className="px-5 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {products.map((product) => {
+                  const primaryImage = product.images.find((image) => image.isPrimary) ?? product.images[0];
+                  return (
+                    <tr key={product.id} className="hover:bg-slate-50">
+                      <td className="px-5 py-4">
+                        <div className="relative size-12 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+                          {primaryImage ? (
+                            <Image src={primaryImage.url} alt="" fill className="object-cover" sizes="48px" />
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 font-medium text-slate-950">{product.name}</td>
+                      <td className="px-5 py-4 text-slate-600">{product.category.name}</td>
+                      <td className="px-5 py-4 text-slate-600">{product.variants.length}</td>
+                      <td className="px-5 py-4 text-slate-600">{productPriceRange(product)}</td>
+                      <td className="px-5 py-4 text-slate-600">{productStockTotal(product)}</td>
+                      <td className="px-5 py-4">
                         <button
                           type="button"
-                          aria-label={`Duplicate ${product.name}`}
-                          onClick={() => duplicateProduct(product)}
-                          className="inline-flex size-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100"
+                          role="switch"
+                          aria-checked={product.isActive}
+                          onClick={() => toggleActive(product, !product.isActive)}
+                          className={[
+                            "relative h-6 w-11 rounded-full transition",
+                            product.isActive ? "bg-green-500" : "bg-slate-300",
+                          ].join(" ")}
                         >
-                          <Copy className="size-4" />
+                          <span
+                            className={[
+                              "absolute top-1 size-4 rounded-full bg-white transition",
+                              product.isActive ? "left-6" : "left-1",
+                            ].join(" ")}
+                          />
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {!loading && products.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-500">
-                    No products found.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
-          <span>
-            Page {page} of {totalPages} · {total} products
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={page === 1}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              className="h-9 rounded-md border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={page === totalPages}
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              className="h-9 rounded-md border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Next
-            </button>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/admin/products/${product.id}/edit`}
+                            aria-label={`Edit ${product.name}`}
+                            className="inline-flex size-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100"
+                          >
+                            <Edit className="size-4" />
+                          </Link>
+                          <button
+                            type="button"
+                            aria-label={`Duplicate ${product.name}`}
+                            onClick={() => duplicateProduct(product)}
+                            className="inline-flex size-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100"
+                          >
+                            <Copy className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+          <div className="border-t border-slate-200 px-5 py-4">
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

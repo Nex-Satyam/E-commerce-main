@@ -15,7 +15,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const { role, isBanned } = body;
 
     // Prevent non-superadmins from changing roles
-    if (role && !session.user.isSuperAdmin) {
+    if (role && session.user.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Forbidden: Only Super Admins can promote users" },
         { status: 403 }
