@@ -82,7 +82,7 @@ export function HeroSlider() {
                     const res = await fetch(`/api/product/slug/${product.slug}`);
                     const data = await res.json();
                     if (data && data.success !== false) {
-                      router.push(`/products/slug/${product.slug}`);
+                      router.push(`/products/${product.slug}`);
                     } else {
                       alert("Product not found or unavailable.");
                     }

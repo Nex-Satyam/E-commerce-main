@@ -70,7 +70,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <Heart className={`size-4${isWishlisted ? " fill-current" : ""}`} />
         </Button>
       </div>
-      <Link href={`/products/slug/${product.slug}`} className="product-card-link">
+      <Link href={`/products/${product.slug}`} className="product-card-link">
         <div className="product-image-wrap">
           <Image
             src={getImageUrl(product)}

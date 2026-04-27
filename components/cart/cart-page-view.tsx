@@ -93,7 +93,7 @@ useEffect(() => {
               items.map((item) => (
                 <Card key={item.variantId} className="cart-item-card py-0 shadow-none">
                   <CardContent className="cart-item-content">
-                    <Link href={`/products/slug/${item.product.slug}`} className="cart-item-image-link">
+                    <Link href={`/products/${item.product.slug}`} className="cart-item-image-link">
                       <div className="cart-item-image-wrap">
                         <Image
 src={item.product.image || "/placeholder.png"}                 
