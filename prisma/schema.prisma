@@ -68,6 +68,7 @@ model User {
   orders        Order[]
   reviews       Review[]
   notifications Notification[]
+  wishlistedBy Wishlist[]
 
   @@index([email])   // fast login lookup
   @@index([role])    // fast admin user list query
@@ -125,6 +126,7 @@ model Product {
   variants ProductVariant[]
   images   ProductImage[]
   reviews  Review[]
+  wishlistedBy Wishlist[]
 
   @@index([categoryId])
   @@index([isActive])

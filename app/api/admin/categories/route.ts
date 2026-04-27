@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-import { NextResponse } from "next/server";
-import { getCategories } from "@/lib/admin-store";
-
-export async function GET() {
-  return NextResponse.json({ categories: getCategories() });
-=======
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -56,5 +49,4 @@ export async function POST(request: Request) {
     console.error("POST /api/admin/categories error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
->>>>>>> origin/main
 }

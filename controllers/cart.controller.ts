@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addToCart, getCart, updateCartItem } from "@/services/cart.service";
+import { addToCart, getCart, updateCartItem, updateCartItemById } from "@/services/cart.service";
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -72,13 +72,16 @@ export async function handleUpdateCart(req: NextRequest) {
     }
 
     const userId = session.user.id;
-
     const body = await req.json();
-    const { variantId, quantity } = body;
+    const { cartItemId, quantity } = body;
 
-    const result = await updateCartItem({
+    if (!cartItemId || typeof quantity !== "number") {
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+
+    const result = await updateCartItemById({
       userId,
-      variantId,
+      cartItemId,
       quantity,
     });
 

@@ -3,6 +3,15 @@ export type NavItem = {
   href: string;
 };
 
+export type ProductVariant = {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  sku: string;
+  skuError?: string;
+};
+
 export type CategoryItem = {
   name: string;
   description: string;
@@ -10,14 +19,14 @@ export type CategoryItem = {
 };
 
 export type ProductItem = {
-  variants: any;
-  id: any;
   slug: string;
   name: string;
   price: string;
   tag: string;
   image: string;
   images: string[];
+    variants?: ProductVariant[];
+
   description: string;
   longDescription: string;
   details: string[];

@@ -1,4 +1,26 @@
 import { prisma } from "@/lib/prisma";
+export const getOrdersByUserId = async (userId: string) => {
+  return await prisma.order.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      items: {
+        include: {
+          variant: {
+            include: { product: true },
+          },
+        },
+      },
+    },
+  });
+};
+
+export const cancelOrderById = async (orderId: string, userId: string) => {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || order.userId !== userId) throw new Error("Order not found or unauthorized");
+  if (order.status === "DELIVERED" || order.status === "CANCELLED") throw new Error("Cannot cancel this order");
+  return await prisma.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } });
+};
 
 export const createOrder = async ({
   userId,
@@ -22,7 +44,6 @@ export const createOrder = async ({
     throw new Error("Cart is empty");
   }
 
-  // 👤 Get user (for snapshot)
   const user = await prisma.user.findUnique({
     where: { id: userId },
   });

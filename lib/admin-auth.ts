@@ -3,8 +3,6 @@ import { signOut } from "next-auth/react";
 export async function adminLogout() {
   await signOut({ callbackUrl: "/admin/login" });
 }
-<<<<<<< HEAD
-=======
 
 export function getAdminSession() {
   if (typeof window === "undefined") return null;
@@ -16,4 +14,3 @@ export function getAdminSession() {
     return null;
   }
 }
->>>>>>> origin/main

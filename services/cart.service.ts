@@ -1,3 +1,26 @@
+export const updateCartItemById = async ({
+  userId,
+  cartItemId,
+  quantity,
+}: {
+  userId: string;
+  cartItemId: string;
+  quantity: number;
+}) => {
+  const cartItem = await prisma.cartItem.findUnique({
+    where: { id: cartItemId },
+  });
+  if (!cartItem || cartItem.userId !== userId) {
+    throw new Error("Cart item not found or unauthorized");
+  }
+  if (quantity === 0) {
+    return await prisma.cartItem.delete({ where: { id: cartItemId } });
+  }
+  return await prisma.cartItem.update({
+    where: { id: cartItemId },
+    data: { quantity },
+  });
+};
 import { prisma } from "@/lib/prisma";
 
 export const addToCart = async ({

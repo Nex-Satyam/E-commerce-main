@@ -4,12 +4,6 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
-<<<<<<< HEAD
-  const hashedPassword = await bcrypt.hash("admin123", 10);
-
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@nex.com" },
-=======
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
 
@@ -18,23 +12,24 @@ async function main() {
     return;
   }
 
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail },
+    select: { id: true, email: true, role: true },
+  });
+
+  if (existingAdmin) {
+    console.log(`Admin already exists: ${existingAdmin.email} (${existingAdmin.role})`);
+    return;
+  }
+
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
->>>>>>> origin/main
     update: {
       name: "Admin",
       password: hashedPassword,
       role: "ADMIN",
-<<<<<<< HEAD
-    },
-    create: {
-      name: "Admin",
-      email: "admin@nex.com",
-      password: hashedPassword,
-      role: "ADMIN",
-=======
       // isSuperAdmin: true,
     },
     create: {
@@ -43,11 +38,11 @@ async function main() {
       password: hashedPassword,
       role: "ADMIN",
       // isSuperAdmin: true,
->>>>>>> origin/main
     },
+    select: { id: true, email: true, role: true },
   });
 
-  console.log("Admin created or updated:", admin);
+  console.log("Admin created:", admin);
 }
 
 main()

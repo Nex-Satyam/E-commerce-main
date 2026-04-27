@@ -1,26 +1,10 @@
+
 import { NextRequest, NextResponse } from "next/server";
-<<<<<<< HEAD
-import { listProducts, saveProduct } from "@/lib/admin-store";
-
-export async function GET(request: NextRequest) {
-  const params = request.nextUrl.searchParams;
-  return NextResponse.json(
-    listProducts({
-      search: params.get("search") ?? "",
-      category: params.get("category") ?? "",
-      active: params.get("active") ?? "",
-      page: Number(params.get("page") ?? 1),
-      limit: Number(params.get("limit") ?? 20),
-    })
-  );
-}
-
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const product = saveProduct(body);
-  return NextResponse.json({ product }, { status: 201 });
-=======
 import { prisma } from "@/lib/prisma";
+
+
+
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,7 +44,6 @@ export async function GET(request: NextRequest) {
       prisma.category.findMany({ orderBy: { name: "asc" } }),
     ]);
 
-    // Convert prices from PAISE (Int) to RUPEES (Number) for frontend
     const formattedProducts = products.map((p) => ({
       ...p,
       createdAt: p.createdAt.toISOString(),
@@ -95,12 +78,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Generate base slug
     let baseSlug = generateSlug(body.name);
     let slug = baseSlug;
     let counter = 1;
     
-    // Ensure slug uniqueness
     while (await prisma.product.findUnique({ where: { slug } })) {
       slug = `${baseSlug}-${counter}`;
       counter++;
@@ -124,7 +105,7 @@ export async function POST(request: NextRequest) {
           create: body.variants?.map((v: any) => ({
             name: v.name,
             sku: v.sku,
-            price: Math.round(Number(v.price) * 100), // RUPEES to PAISE
+            price: Math.round(Number(v.price) * 100), 
             stock: Number(v.stock),
           })) || [],
         },
@@ -148,5 +129,4 @@ export async function POST(request: NextRequest) {
     console.error("Error creating product:", error);
     return NextResponse.json({ error: error.message || "Failed to create product" }, { status: 500 });
   }
->>>>>>> origin/main
 }

@@ -1,5 +1,3 @@
-// services/search.service.ts
-import { products } from "@/components/home/home-data";
 
 export type SearchParams = {
   q?: string;
@@ -8,32 +6,20 @@ export type SearchParams = {
   rating?: number;
 };
 
-function parsePrice(price: string) {
-  return Number(price.replace(/[^\d.]/g, ""));
-}
+// Client-side: always call the API
+export async function searchProducts({ q = "", category = "", price = "", rating = 0 }: SearchParams) {
+  const params = new URLSearchParams();
+  if (q) params.append("q", q);
+  if (category) params.append("category", category);
+  if (price) params.append("price", price);
+  if (rating) params.append("rating", rating.toString());
 
-export function searchProducts({ q = "", category = "", price = "", rating = 0 }: SearchParams) {
-  let filtered = products;
-  const query = q.toLowerCase();
-  if (query) {
-    filtered = filtered.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        p.slug.toLowerCase().includes(query)
-    );
+  const apiUrl = `/api/search?${params.toString()}`;
+  const res = await fetch(apiUrl);
+  if (!res.ok) {
+    console.error("Search API error", res.status, res.statusText);
+    return [];
   }
-  if (category) {
-    filtered = filtered.filter((p) => p.category === category);
-  }
-  if (price) {
-    const [min, max] = price.split("-").map(Number);
-    filtered = filtered.filter((p) => {
-      const priceNum = parsePrice(p.price);
-      return priceNum >= min && priceNum <= max;
-    });
-  }
-  if (rating && rating > 0) {
-    filtered = filtered.filter((p) => Math.floor(p.rating) >= rating);
-  }
-  return filtered;
+  const data = await res.json();
+  return data.products || [];
 }

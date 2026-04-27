@@ -1,42 +1,32 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import {
-  getProfileController,
-  updateProfileController,
-} from "@/controllers/user.controller";
+import { getOrdersByUserId, cancelOrderById } from "@/controllers/order.controller";
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    console.log("Session in GET /api/user/profile:", session);
     if (!session) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const user = await getProfileController(session.user.id);
-
-    return Response.json(user);
+    const orders = await getOrdersByUserId(session.user.id);
+    return Response.json(orders);
   } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function PATCH(req: Request) {
+export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.log("Received profile update request for user:", session);
-
-    const body = await req.json();
-
-    const updatedUser = await updateProfileController(
-      session.user.id,
-      body
-    );
-    return Response.json(updatedUser);
+    const { orderId, action } = await req.json();
+    if (action === "cancel") {
+      const result = await cancelOrderById(orderId, session.user.id);
+      return Response.json(result);
+    }
+    return Response.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500 });
   }

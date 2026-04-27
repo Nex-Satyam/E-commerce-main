@@ -126,10 +126,10 @@ src={item.product.image || "/placeholder.png"}
                           value={item.quantity}
                           onChange={async (e) => {
                             const newQuantity = Number(e.target.value);
-                            console.log("Updating cart:", { variantId: item.variantId, quantity: newQuantity });
+                            console.log("Updating cart:", { cartItemId: item.id, quantity: newQuantity });
                             try {
                               const patchRes = await axios.patch("/api/cart", {
-                                variantId: item.variantId,
+                                cartItemId: item.id,
                                 quantity: newQuantity,
                               });
                               console.log("PATCH response:", patchRes.data);
