@@ -1,24 +1,29 @@
--- CreateEnum
-CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
-
--- CreateTable
-CREATE TABLE "User" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "password" TEXT,
-    "role" "Role" NOT NULL DEFAULT 'USER',
-    "isVerified" BOOLEAN NOT NULL DEFAULT false,
-    "verificationToken" TEXT,
-    "resetToken" TEXT,
-    "resetTokenExpiry" TIMESTAMP(3),
-    "image" TEXT,
-    "phone" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+CREATE TYPE mini_e_commerce."Role" AS ENUM (
+    'USER',
+    'ADMIN',
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE TABLE mini_e_commerce."User" (
+    "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL UNIQUE,
+    "password" TEXT,
+
+    "role" mini_e_commerce."Role" NOT NULL DEFAULT 'USER',
+
+    "isVerified" BOOLEAN NOT NULL DEFAULT false,
+    "verificationToken" TEXT UNIQUE,
+
+    "resetToken" TEXT,
+    "resetTokenExpiry" TIMESTAMP,
+
+    "image" TEXT,
+    "phone" TEXT,
+
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    "isBanned" BOOLEAN NOT NULL DEFAULT false,
+
+    "address" TEXT
+);

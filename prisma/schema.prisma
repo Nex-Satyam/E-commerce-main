@@ -68,6 +68,7 @@ model User {
   orders        Order[]
   reviews       Review[]
   notifications Notification[]
+  wishlistedBy Wishlist[]
 
   @@index([email])   // fast login lookup
   @@index([role])    // fast admin user list query
@@ -125,6 +126,7 @@ model Product {
   variants ProductVariant[]
   images   ProductImage[]
   reviews  Review[]
+  wishlistedBy Wishlist[]
 
   @@index([categoryId])
   @@index([isActive])
@@ -277,5 +279,18 @@ model Notification {
 
   @@index([userId, isRead]) // THE most important index — powers the bell unread count
   @@index([userId, createdAt]) // fast notification inbox sorted by date
+  @@schema("mini_e_commerce")
+}
+model Wishlist {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId    String   @db.Text
+  productId String   @db.Text
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId], name: "Wishlist_unique_user_product")
+
   @@schema("mini_e_commerce")
 }
