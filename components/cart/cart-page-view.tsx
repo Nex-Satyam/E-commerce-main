@@ -2,12 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ShieldCheck, Truck } from "lucide-react";
-
 import { CtaButton } from "@/components/home/cta-button";
-import { cartItems, getProductBySlug } from "@/components/home/home-data";
 import { Card, CardContent } from "@/components/ui/card";
+import axios from "axios";
 
 const quantityOptions = [0, 1, 2, 3, 4, 5];
 
@@ -24,41 +23,45 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function CartPageView() {
-  const [quantities, setQuantities] = useState<Record<string, number>>(
-    Object.fromEntries(cartItems.map((item) => [item.productSlug, item.quantity])),
-  );
+function CartPageView() {
+  
+  const [item, setItem] = useState([]);
+useEffect(() => {
+  const fetchCart = async () => {
+    try {
+      const res = await axios.get("/api/cart");
+      const data = res.data;
+      console.log("Cart data:", data);
+      setItem(data.cart || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  const items = useMemo(() => {
-    return cartItems
-      .map((item) => {
-        const product = getProductBySlug(item.productSlug);
+  fetchCart();
+}, []);
+ const items = item.map((cartItem: any) => {
+  const product = cartItem.variant.product;
+  const quantity = cartItem.quantity;
+  const unitPrice = cartItem.variant.price;
 
-        if (!product) {
-          return null;
-        }
-
-        const quantity = quantities[item.productSlug] ?? item.quantity;
-
-        if (quantity <= 0) {
-          return null;
-        }
-
-        const unitPrice = parsePrice(product.price);
-
-        return {
-          ...item,
-          product,
-          quantity,
-          unitPrice,
-          totalPrice: unitPrice * quantity,
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [quantities]);
+  return {
+    ...cartItem,
+    product: {
+      ...product,
+      image: product.images?.[0]?.url,
+      price: unitPrice,
+      sku: cartItem.variant.sku,
+    },
+    quantity,
+    unitPrice,
+    totalPrice: unitPrice * quantity,
+    size: cartItem.variant.name,
+    color: "-",
+  };
+});
 
   const hasItems = items.length > 0;
-
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
   const shipping = hasItems ? (subtotal >= 180 ? 0 : 12) : 0;
   const tax = hasItems ? Number((subtotal * 0.08).toFixed(2)) : 0;
@@ -88,13 +91,13 @@ export function CartPageView() {
           <div className="cart-item-list">
             {hasItems ? (
               items.map((item) => (
-                <Card key={item.product.slug} className="cart-item-card py-0 shadow-none">
+                <Card key={item.variantId} className="cart-item-card py-0 shadow-none">
                   <CardContent className="cart-item-content">
                     <Link href={`/products/${item.product.slug}`} className="cart-item-image-link">
                       <div className="cart-item-image-wrap">
                         <Image
-                          src={item.product.image}
-                          alt={item.product.name}
+src={item.product.image || "/placeholder.png"}                 
+         alt={item.product.name}
                           fill
                           sizes="180px"
                           className="cart-item-image"
@@ -104,8 +107,8 @@ export function CartPageView() {
 
                     <div className="cart-item-copy">
                       <div className="cart-item-info">
-                        <p className="cart-item-tag">{item.product.tag}</p>
-                        <h2>{item.product.name}</h2>
+<p className="cart-item-tag">{item.product.tag || "Product"}</p>         
+               <h2>{item.product.name}</h2>
                         <p>{item.product.description}</p>
                       </div>
 
@@ -121,11 +124,21 @@ export function CartPageView() {
                         <span>Quantity</span>
                         <select
                           value={item.quantity}
-                          onChange={(event) => {
-                            setQuantities((current) => ({
-                              ...current,
-                              [item.product.slug]: Number(event.target.value),
-                            }));
+                          onChange={async (e) => {
+                            const newQuantity = Number(e.target.value);
+                            console.log("Updating cart:", { cartItemId: item.id, quantity: newQuantity });
+                            try {
+                              const patchRes = await axios.patch("/api/cart", {
+                                cartItemId: item.id,
+                                quantity: newQuantity,
+                              });
+                              console.log("PATCH response:", patchRes.data);
+                              const res = await axios.get("/api/cart");
+                              console.log("Updated cart:", res.data.cart);
+                              setItem(res.data.cart || []);
+                            } catch (err) {
+                              console.error(err);
+                            }
                           }}
                         >
                           {quantityOptions.map((option) => (
@@ -191,13 +204,32 @@ export function CartPageView() {
 
               <div className="cart-summary-actions">
                 {hasItems ? (
-                  <CtaButton asChild className="cart-summary-button">
+                  <CtaButton  asChild  className="cart-summary-button">
                     <Link href="/checkout">Proceed to Checkout</Link>
                   </CtaButton>
                 ) : (
-                  <CtaButton className="cart-summary-button" disabled>
-                    Proceed to Checkout
-                  </CtaButton>
+                 <CtaButton
+  className="cart-summary-button"
+  onClick={async () => {
+    try {
+      const res = await axios.post("/api/checkout", {
+        addressId: "YOUR_ADDRESS_ID",
+      });
+
+      console.log("Order:", res.data);
+
+      alert("Order placed successfully 🎉");
+
+      window.location.href = "/orders";
+
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.error || "Checkout failed");
+    }
+  }}
+>
+  Proceed to Checkout
+</CtaButton>
                 )}
                 <CtaButton tone="light" className="cart-summary-button" disabled={!hasItems}>
                   Save for Later
@@ -219,3 +251,5 @@ export function CartPageView() {
     </main>
   );
 }
+
+export default CartPageView;

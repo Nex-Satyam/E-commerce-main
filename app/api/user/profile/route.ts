@@ -21,7 +21,7 @@ export async function GET() {
   }
 }
 
-export async function PUT(req: Request) {
+export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -36,7 +36,6 @@ export async function PUT(req: Request) {
       session.user.id,
       body
     );
-
     return Response.json(updatedUser);
   } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500 });

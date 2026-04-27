@@ -6,7 +6,6 @@ import { BarChart3, Boxes, LogOut, PackagePlus, ShoppingBag, Tags, Users, Wareho
 import { NotificationsBell } from "./notifications-bell";
 import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
-
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/admin/products", label: "Products", icon: Boxes },
@@ -26,21 +25,24 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#f3f4f5] text-slate-950 flex flex-col md:flex-row">
-      {/* Sidebar - Collapses to icons on small screens if we wanted, but standard responsive pattern is a drawer or bottom bar. 
-          The requirement says: "Sidebar collapses to icons-only on small screens"
-          We'll use a fixed width for md+ and a narrow width for sm. */}
-      <aside className={`fixed inset-y-0 left-0 z-20 flex flex-col border-r border-slate-200 bg-[#f3f4f5] transition-all duration-300
-        ${isMobileOpen ? "w-64" : "w-16 md:w-64"}
-        `}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-20 flex flex-col border-r border-slate-200 bg-[#f3f4f5] transition-all duration-300
+        ${isMobileOpen ? "w-64" : "w-16 md:w-64"}`}
+      >
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4 md:px-6">
-          <Link href="/admin/dashboard" className={`text-lg font-semibold whitespace-nowrap overflow-hidden transition-all ${isMobileOpen ? "w-auto opacity-100" : "w-0 opacity-0 md:w-auto md:opacity-100"}`}>
+          <Link
+            href="/admin/dashboard"
+            className={`text-lg font-semibold whitespace-nowrap overflow-hidden transition-all ${isMobileOpen ? "w-auto opacity-100" : "w-0 opacity-0 md:w-auto md:opacity-100"}`}
+          >
             Admin Panel
           </Link>
-          <button className="md:hidden p-1 rounded-md hover:bg-slate-200" onClick={() => setIsMobileOpen(!isMobileOpen)}>
+          <button
+            className="md:hidden p-1 rounded-md hover:bg-slate-200"
+            onClick={() => setIsMobileOpen(!isMobileOpen)}
+          >
             <Menu className="size-5" />
           </button>
         </div>
-        
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -51,7 +53,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={`flex items-center rounded-md px-3 py-2 text-sm font-medium transition whitespace-nowrap overflow-hidden
-                  ${isActive ? "bg-[#f1f1f1] text-white" : "text-slate-600 hover:bg-slate-200"}
+                  ${isActive ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-200"}
                   ${isMobileOpen ? "gap-3" : "justify-center md:justify-start md:gap-3"}
                 `}
                 title={!isMobileOpen ? item.label : undefined}
@@ -65,7 +67,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
       </aside>
-
       <div className="flex-1 transition-all duration-300 ml-16 md:ml-64">
         <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:px-8">
           <div>
@@ -74,9 +75,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-4">
             <NotificationsBell />
-            
             <div className="h-6 w-px bg-slate-300"></div>
-
             <div className="flex items-center gap-3">
               {session?.user && (
                 <div className="hidden text-right text-sm sm:block">

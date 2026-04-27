@@ -1,5 +1,4 @@
 "use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Heart, ShoppingBag } from "lucide-react";
@@ -8,6 +7,7 @@ import { CtaButton } from "@/components/home/cta-button";
 import { getProductBySlug } from "@/components/home/home-data";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import { Card, CardContent } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 
 export function WishlistPageView() {
@@ -69,7 +69,10 @@ export function WishlistPageView() {
                           className="wishlist-toggle-button is-active"
                           aria-label={`Remove ${product.name} from wishlist`}
                           aria-pressed="true"
-                          onClick={() => toggleWishlist(product.slug)}
+                          onClick={() => {
+                            toggleWishlist(product.slug);
+
+                          }}
                         >
                           <Heart className="size-4 fill-current" />
                         </Button>

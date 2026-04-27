@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getStats } from "@/lib/admin-store";
 import { prisma } from "@/lib/prisma";
+
 
 export async function GET() {
   const [totalOrders, pendingOrders, revenueResult, lowStockCount] = await Promise.all([
@@ -17,7 +19,7 @@ export async function GET() {
   return NextResponse.json({
     totalOrders,
     pendingOrders,
-    revenue: revenuePaise / 100, // PAISE to RUPEES
+    revenue: revenuePaise / 100, 
     lowStockCount,
   });
 }

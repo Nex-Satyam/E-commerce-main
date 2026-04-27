@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Manrope, Geist } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/components/auth/auth-provider";
 import { cn } from "@/lib/utils";
+import ClientLayout from "@/components/ClientLayout";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
 import { ClientProviders } from "@/components/auth/client-providers";
 
@@ -23,16 +24,12 @@ export const metadata: Metadata = {
   description: "A refined off-white themed fashion storefront homepage.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={cn(displayFont.variable, bodyFont.variable, "font-sans", geist.variable)}>
       <body className="antialiased">
         <ClientProviders>
-          {children}
+          <ClientLayout>{children}</ClientLayout>
         </ClientProviders>
       </body>
     </html>

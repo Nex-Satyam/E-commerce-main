@@ -18,8 +18,7 @@ export const updateProfileController = async (userId: string, body: any) => {
     name: body.name,
     phone: body.phone,
     image: body.image,
-    bio: body.bio,
     address: body.address,
-    
+    city: body.city,
   });
 };

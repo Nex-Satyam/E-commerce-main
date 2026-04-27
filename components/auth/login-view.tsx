@@ -48,7 +48,7 @@ export function LoginView() {
                   redirect: false,
                 });
                 if (res?.error) {
-                  alert("Invalid email or password ");
+                  alert("Invalid email or password");
                   return;
                 }
                 router.push("/");

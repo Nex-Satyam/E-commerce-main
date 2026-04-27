@@ -1,15 +1,15 @@
+
 "use client";
 import Link from "next/link";
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, Eye, EyeOff } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { CtaButton } from "@/components/home/cta-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Button } from "@/components/ui/button";
 import axios from "axios";
 
 export function SignupView() {

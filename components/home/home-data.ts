@@ -1,43 +1,53 @@
-  export type NavItem = {
-    label: string;
-    href: string;
-  };
+export type NavItem = {
+  label: string;
+  href: string;
+};
 
-  export type CategoryItem = {
-    name: string;
-    description: string;
-    accent: string;
-  };
+export type ProductVariant = {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  sku: string;
+  skuError?: string;
+};
 
-  export type ProductItem = {
-    slug: string;
+export type CategoryItem = {
+  name: string;
+  description: string;
+  accent: string;
+};
+
+export type ProductItem = {
+  slug: string;
+  name: string;
+  price: string;
+  tag: string;
+  image: string;
+  images: string[];
+  variants?: ProductVariant[];
+  description: string;
+  longDescription: string;
+  details: string[];
+  sizes: string[];
+  colors: Array<{
     name: string;
-    price: string;
-    tag: string;
-    image: string;
-    images: string[];
-    description: string;
-    longDescription: string;
-    details: string[];
-    sizes: string[];
-    colors: Array<{
-      name: string;
-      swatch: string;
-    }>;
+    swatch: string;
+  }>;
+  rating: number;
+  reviewCount: number;
+  sku: string;
+  category: string;
+  material: string;
+  fit: string;
+  reviews: Array<{
+    author: string;
+    date: string;
     rating: number;
-    reviewCount: number;
-    sku: string;
-    category: string;
-    material: string;
-    fit: string;
-    reviews: Array<{
-      author: string;
-      date: string;
-      rating: number;
-      title: string;
-      comment: string;
-    }>;
-  };
+    title: string;
+    comment: string;
+  }>;
+};
 
   export type SlideItem = {
     title: string;

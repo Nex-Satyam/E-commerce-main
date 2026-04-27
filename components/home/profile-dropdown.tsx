@@ -23,6 +23,7 @@ export function ProfileDropdown() {
   let email = session?.user?.email || "";
   let role = session?.user?.role || "";
 
+
   try {
     const auth = useAuth();
     if (auth && auth.isLoggedIn) {
@@ -60,7 +61,9 @@ export function ProfileDropdown() {
               <Link href="/profile" onClick={closeMenu}><UserRound className="size-4" />My Profile</Link>
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem><Package className="size-4" />Orders</DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/orders" onClick={closeMenu}><Package className="size-4" />Orders</Link>
+          </DropdownMenuItem>
           <DropdownMenuItem asChild><Link href="/wishlist" onClick={closeMenu}><Heart className="size-4" />Wishlist</Link></DropdownMenuItem>
           <DropdownMenuItem><Settings className="size-4" />Settings</DropdownMenuItem>
         </DropdownMenuGroup>

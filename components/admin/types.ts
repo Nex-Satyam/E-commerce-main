@@ -7,15 +7,13 @@ import type {
   OrderStatus,
 } from "@/lib/admin-store";
 
-export type { AdminProduct, AdminProductImage, AdminProductVariant, OrderStatus };
-export type { AdminOrder };
+export type { AdminOrder, AdminProduct, AdminProductImage, AdminProductVariant, OrderStatus };
 
 export type AdminCategory = StoreAdminCategory & {
   _count?: {
     products: number;
   };
 };
-
 export type ProductListResponse = {
   products: AdminProduct[];
   total: number;
@@ -62,6 +60,7 @@ export type AdminUser = {
   email: string;
   role: "USER" | "ADMIN";
   isBanned: boolean;
+  isSuperAdmin: boolean;
   // isSuperAdmin: boolean;
   _count: {
     orders: number;

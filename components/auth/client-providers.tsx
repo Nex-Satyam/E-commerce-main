@@ -1,5 +1,4 @@
 "use client";
-
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { SessionProvider } from "next-auth/react";

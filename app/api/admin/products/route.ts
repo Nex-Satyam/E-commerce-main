@@ -1,5 +1,10 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+
+
+
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,7 +44,6 @@ export async function GET(request: NextRequest) {
       prisma.category.findMany({ orderBy: { name: "asc" } }),
     ]);
 
-    // Convert prices from PAISE (Int) to RUPEES (Number) for frontend
     const formattedProducts = products.map((p) => ({
       ...p,
       createdAt: p.createdAt.toISOString(),
@@ -74,12 +78,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Generate base slug
     let baseSlug = generateSlug(body.name);
     let slug = baseSlug;
     let counter = 1;
     
-    // Ensure slug uniqueness
     while (await prisma.product.findUnique({ where: { slug } })) {
       slug = `${baseSlug}-${counter}`;
       counter++;
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
           create: body.variants?.map((v: any) => ({
             name: v.name,
             sku: v.sku,
-            price: Math.round(Number(v.price) * 100), // RUPEES to PAISE
+            price: Math.round(Number(v.price) * 100), 
             stock: Number(v.stock),
           })) || [],
         },

@@ -33,7 +33,7 @@ export function UsersListPage() {
   }, [searchInput]);
 
   async function loadUsers() {
-    setLoading(true);
+  setLoading(true);
     const params = new URLSearchParams({
       search,
       page: String(page),
@@ -60,7 +60,7 @@ export function UsersListPage() {
 
   async function handleToggleBan(user: AdminUser) {
     setIsUpdating(user.id);
-    // Optimistic UI could be applied here if we want, but since it's banning, maybe wait for response
+  // Optimistic UI could be applied here if we want, but since it's banning, maybe wait for response
     try {
       const response = await fetch(`/api/admin/users/${user.id}`, {
         method: "PATCH",
@@ -164,7 +164,7 @@ export function UsersListPage() {
                         <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${roleStatusClass[user.role]}`}>
                           {user.role}
                         </span>
-                        {user.role && (
+                        {user.isSuperAdmin && (
                           <span className="inline-flex w-fit items-center gap-1 text-[10px] font-bold text-blue-600 uppercase">
                             <ShieldCheck className="size-3" />
                             Super
@@ -186,7 +186,7 @@ export function UsersListPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                         <button
+                        <button
                           onClick={() => setSelectedUserId(user.id)}
                           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
                           title="Quick View"
@@ -201,20 +201,18 @@ export function UsersListPage() {
                         >
                           <ShoppingBag className="size-4" />
                         </a>
-                        
-                        {session?.user.role && user.role !== "ADMIN" && (
-                           <button
-                             disabled={isUpdating === user.id}
-                             onClick={() => handlePromote(user)}
-                             className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-purple-50 hover:text-purple-600 transition"
-                             title="Promote to Admin"
-                           >
-                             <UserPlus className="size-4" />
-                           </button>
+                        {session?.user.isSuperAdmin && user.role !== "ADMIN" && (
+                          <button
+                            disabled={isUpdating === user.id}
+                            onClick={() => handlePromote(user)}
+                            className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-purple-50 hover:text-purple-600 transition"
+                            title="Promote to Admin"
+                          >
+                            <UserPlus className="size-4" />
+                          </button>
                         )}
-  
                         <button
-                          disabled={isUpdating === user.id || (user.role && user.id !== session?.user.id)}
+                          disabled={isUpdating === user.id || (user.isSuperAdmin && user.id !== session?.user.id)}
                           onClick={() => handleToggleBan(user)}
                           className={[
                             "inline-flex size-9 items-center justify-center rounded-lg border transition",
@@ -233,13 +231,11 @@ export function UsersListPage() {
               </tbody>
             </table>
           </div>
-  
           <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-4 text-xs font-semibold uppercase tracking-wider">
             <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </section>
       )}
-
       <UserDetailDrawer 
         userId={selectedUserId} 
         onClose={() => setSelectedUserId(null)} 

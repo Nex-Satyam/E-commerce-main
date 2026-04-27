@@ -107,7 +107,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-
   try {
     const product = await prisma.product.update({
       where: { id },

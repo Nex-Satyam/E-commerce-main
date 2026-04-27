@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { ArrowLeft, BadgeCheck, MapPin, PencilLine, Save, ShieldCheck, Sparkles } from "lucide-react";
 import axios from "axios";
+import { useSession } from "next-auth/react";
 import { useAuth, type UserProfile } from "@/components/auth/auth-provider";
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
@@ -20,17 +21,17 @@ function getInitials(name: string) {
 }
 
 export function ProfilePageView() {
-  const { isLoggedIn, role, profile, updateProfile } = useAuth();
-  const [profileData, setProfileData] = useState<UserProfile | null>(profile);
-
+  const { data: session, status } = useSession();
+  const user = session?.user;
+  const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [formState, setFormState] = useState<UserProfile | null>(profile);
+  const [formState, setFormState] = useState<UserProfile | null>(null);
+  const initials = useMemo(() => getInitials(user?.name ?? profileData?.name ?? "ASR"), [user?.name, profileData?.name]);
 
-   useEffect(() => {
+  useEffect(() => {
     async function fetchProfile() {
       try {
         const res = await axios.get("/api/user/profile");
-        console.log("Profile data fetched from API:", res.data);
         setProfileData(res.data);
         setFormState(res.data);
       } catch {
@@ -38,12 +39,13 @@ export function ProfilePageView() {
         setFormState(null);
       }
     }
-    fetchProfile();
-  }, []);
+    if (user) fetchProfile();
+  }, [user]);
 
-  const initials = useMemo(() => getInitials(profileData?.name ?? "ASR"), [profileData?.name]);
-
-  if (!profileData || !formState) {
+  if (status === "loading") {
+    return <div>Loading...</div>;
+  }
+  if (!user) {
     return (
       <section className="profile-page">
         <div className="profile-breadcrumb">
@@ -51,7 +53,6 @@ export function ProfilePageView() {
             <ArrowLeft className="size-4" /> Back to home
           </Link>
         </div>
-
         <Card className="profile-empty-card py-0 shadow-none">
           <CardContent className="profile-empty-content">
             <div className="profile-empty-copy">
@@ -61,7 +62,6 @@ export function ProfilePageView() {
                 Your profile page shows saved account information, contact details, and editable user preferences once you are signed in.
               </p>
             </div>
-
             <div className="profile-empty-actions">
               <CtaButton asChild>
                 <Link href="/login">Login</Link>
@@ -74,6 +74,10 @@ export function ProfilePageView() {
         </Card>
       </section>
     );
+  }
+
+  if (!profileData || !formState) {
+    return <div>Loading profile...</div>;
   }
 
   return (
@@ -92,7 +96,7 @@ export function ProfilePageView() {
             <div className="profile-avatar w-24 h-24 rounded-full bg-gradient-to-br from-[#e0e7ff] to-[#f1f5f9] flex items-center justify-center text-4xl font-bold text-gray-700 border-4 border-white shadow-lg ring-4 ring-indigo-200">
               {initials || "AS"}
             </div>
-            <span className="absolute bottom-0 right-0 bg-indigo-500 text-white rounded-full px-2 py-1 text-xs font-semibold shadow">{role === "admin" ? "Admin" : "User"}</span>
+            <span className="absolute bottom-0 right-0 bg-indigo-500 text-white rounded-full px-2 py-1 text-xs font-semibold shadow">User</span>
           </div>
           <div className="profile-hero-copy text-center">
             <p className="eyebrow uppercase tracking-widest text-xs text-indigo-400 font-semibold mb-1">Account Details</p>
@@ -101,7 +105,7 @@ export function ProfilePageView() {
           </div>
           <div className="profile-chip-row flex gap-2 justify-center mb-4">
             <span className="profile-chip flex items-center gap-1 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full font-medium shadow">
-              {role === "admin" ? <ShieldCheck className="size-4" /> : <BadgeCheck className="size-4" />} {role === "admin" ? "Admin account" : "Verified customer"}
+              <BadgeCheck className="size-4" /> Verified customer
             </span>
             <span className="profile-chip is-light flex items-center gap-1 bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-medium">
               <Sparkles className="size-4" /> Member since {profileData.memberSince}
@@ -123,7 +127,6 @@ export function ProfilePageView() {
           </div>
         </Card>
 
-        {/* Details/Edit Card */}
         <Card className="profile-details-card shadow-lg rounded-2xl border-0 bg-white/90">
           <CardContent className="profile-details-content p-8">
             <div className="profile-section-head flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-2">
@@ -150,8 +153,7 @@ export function ProfilePageView() {
                     className="profile-save-button rounded-full bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 font-semibold shadow"
                     onClick={async () => {
                       try {
-                        await axios.put("/api/user/profile", formState);
-                        updateProfile(formState);
+                        await axios.patch("/api/user/profile", formState);
                         const res = await axios.get("/api/user/profile");
                         setProfileData(res.data);
                         setFormState(res.data);

@@ -55,3 +55,18 @@ export async function GET(request: Request) {
   }
 }
 
+export async function PATCH(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { pathname } = new URL(request.url);
+    const id = pathname.split("/").pop(); 
+    
+    return NextResponse.json({ error: "Use /api/admin/users/[id] for PATCH" }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

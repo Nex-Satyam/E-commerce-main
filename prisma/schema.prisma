@@ -6,7 +6,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://neondb_owner:npg_BHP3TfFADid2@ep-cold-unit-aol6ulsz.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
   schemas  = ["mini_e_commerce"]
 }
 
@@ -134,7 +134,6 @@ model Product {
   @@schema("mini_e_commerce")
 }
 
-// Each sellable option of a product (e.g. "Red Switch / 65%", "Black / XL")
 model ProductVariant {
   id    String @id @default(cuid())
   name  String // e.g. "Space Grey / Blue Switch"
@@ -236,7 +235,6 @@ model Order {
   @@schema("mini_e_commerce")
 }
 
-// Each line item inside an order — fully snapshotted at checkout time
 model OrderItem {
   id       String @id @default(cuid())
   quantity Int
@@ -279,18 +277,5 @@ model Notification {
 
   @@index([userId, isRead]) // THE most important index — powers the bell unread count
   @@index([userId, createdAt]) // fast notification inbox sorted by date
-  @@schema("mini_e_commerce")
-}
-model Wishlist {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
-  userId    String   @db.Text
-  productId String   @db.Text
-  createdAt DateTime @default(now()) @db.Timestamp(6)
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, productId], name: "Wishlist_unique_user_product")
-
   @@schema("mini_e_commerce")
 }

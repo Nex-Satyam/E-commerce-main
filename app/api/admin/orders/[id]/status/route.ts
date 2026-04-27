@@ -1,11 +1,12 @@
+
 import { NextRequest, NextResponse } from "next/server";
+import { type OrderStatus, getValidNextStatuses } from "@/lib/admin-store";
 import { prisma } from "@/lib/prisma";
 import { adminOrderInclude, formatAdminOrder } from "@/lib/admin-orders";
-import { getValidNextStatuses } from "@/lib/admin-store";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
-import { NotifType, OrderStatus } from "@prisma/client";
+import { NotifType } from "@prisma/client";
 
 const typeMap: Record<OrderStatus, NotifType> = {
   PENDING: "ORDER_PLACED",
