@@ -10,6 +10,8 @@ export type CategoryItem = {
 };
 
 export type ProductItem = {
+  variants: any;
+  id: any;
   slug: string;
   name: string;
   price: string;

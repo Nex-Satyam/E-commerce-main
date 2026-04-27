@@ -21,7 +21,6 @@ export function CategoriesListPage() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editSlug, setEditSlug] = useState("");
@@ -54,10 +53,7 @@ export function CategoriesListPage() {
   const watchName = watch("name");
 
   useEffect(() => {
-    // Only auto-generate slug if it hasn't been manually edited recently, or just keep it simple:
-    // Here we will just generate slug when name changes and form is clean, but for simplicity,
-    // let's just listen to input changes in the registration if needed.
-    // Actually, handling it via the onChange is better.
+    setValue("slug", generateSlug(watchName), { shouldValidate: true });
   }, [watchName]);
 
   async function loadCategories() {
@@ -138,7 +134,7 @@ export function CategoriesListPage() {
 
   async function handleDelete(category: AdminCategory) {
     if (category._count && category._count.products > 0) {
-      return; // Handled by UI disabling
+      return; 
     }
 
     if (!confirm(`Are you sure you want to delete "${category.name}"?`)) return;
@@ -270,7 +266,7 @@ export function CategoriesListPage() {
                       </code>
                     </td>
                     <td className="px-6 py-4 text-center font-medium text-slate-700">
-                      {category._count?.products ?? 0}
+                      {(category as AdminCategory & { _count?: { products?: number } })._count?.products ?? 0}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">

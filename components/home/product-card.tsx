@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
-<<<<<<< HEAD
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CtaButton } from "@/components/home/cta-button";
@@ -12,29 +11,45 @@ import { useWishlist } from "@/components/wishlist/wishlist-provider";
 
 import { useToast } from "@/components/ui/toast-context";
 
-=======
 
-import { CtaButton } from "@/components/home/cta-button";
-import { ProductItem } from "@/components/home/home-data";
-import { useWishlist } from "@/components/wishlist/wishlist-provider";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
->>>>>>> origin/main
 
 type ProductCardProps = {
   product: ProductItem;
 };
 
-<<<<<<< HEAD
 export default function ProductCard({ product }: ProductCardProps) {
+
+
   const { isInWishlist, toggleWishlist } = useWishlist();
   const isWishlisted = isInWishlist(product.slug);
   const { showToast } = useToast();
-=======
-export function ProductCard({ product }: ProductCardProps) {
-  const { isInWishlist, toggleWishlist } = useWishlist();
-  const isWishlisted = isInWishlist(product.slug);
->>>>>>> origin/main
+
+  const handleWishlistClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleWishlist(product.slug);
+    if (showToast) {
+      showToast(
+        isWishlisted ? "Removed from wishlist" : "Added to wishlist!",
+        isWishlisted ? "info" : "success"
+      );
+    }
+  };
+
+  function getImageUrl(product: ProductItem): string {
+    const img = product.images?.[0];
+    if (!img) return "/placeholder.png";
+    if (typeof img === "string") return img;
+    if (typeof img === "object" && "url" in img && typeof (img as any).url === "string") return (img as any).url;
+    return "/placeholder.png";
+  }
+  function getImageAlt(product: ProductItem): string {
+    const img = product.images?.[0];
+    if (!img) return product.name;
+    if (typeof img === "string") return product.name;
+    if (typeof img === "object" && "altText" in img && typeof (img as any).altText === "string" && (img as any).altText) return (img as any).altText;
+    return product.name;
+  }
 
   return (
     <Card
@@ -50,31 +65,16 @@ export function ProductCard({ product }: ProductCardProps) {
           className={`product-wishlist-button${isWishlisted ? " is-active" : ""}`}
           aria-label={`${isWishlisted ? "Remove" : "Add"} ${product.name} ${isWishlisted ? "from" : "to"} wishlist`}
           aria-pressed={isWishlisted}
-<<<<<<< HEAD
-          onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
-            event.preventDefault();
-            event.stopPropagation();
-            toggleWishlist(product.slug);
-            showToast(
-              isWishlisted ? "Removed from wishlist" : "Added to wishlist!",
-              isWishlisted ? "info" : "success"
-            );
-=======
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            toggleWishlist(product.slug);
->>>>>>> origin/main
-          }}
+          onClick={handleWishlistClick}
         >
           <Heart className={`size-4${isWishlisted ? " fill-current" : ""}`} />
         </Button>
       </div>
-      <Link href={`/products/${product.slug}`} className="product-card-link">
+      <Link href={`/products/slug/${product.slug}`} className="product-card-link">
         <div className="product-image-wrap">
           <Image
-            src={product.image}
-            alt={product.name}
+            src={getImageUrl(product)}
+            alt={getImageAlt(product)}
             fill
             sizes="(max-width: 768px) 100vw, 25vw"
             className="product-image"

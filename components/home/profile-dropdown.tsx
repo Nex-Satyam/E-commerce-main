@@ -6,10 +6,7 @@ import { CircleUserRound, Heart, LogIn, LogOut, Package, Settings, ShieldCheck, 
 import { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-<<<<<<< HEAD
-=======
 import { useAuth } from "@/components/auth/auth-provider";
->>>>>>> origin/main
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type User = { role?: string; [key: string]: any };
@@ -26,9 +23,7 @@ export function ProfileDropdown() {
   let email = session?.user?.email || "";
   let role = session?.user?.role || "";
 
-<<<<<<< HEAD
 
-=======
   try {
     const auth = useAuth();
     if (auth && auth.isLoggedIn) {
@@ -38,7 +33,6 @@ export function ProfileDropdown() {
       role = (auth.role as string | undefined) || role;
     }
   } catch {}
->>>>>>> origin/main
 
   if (status === "loading") return null;
 

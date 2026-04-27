@@ -1,11 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-<<<<<<< HEAD
-import { getProduct, patchProduct, softDeleteProduct } from "@/lib/admin-store";
-
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const product = getProduct(id);
-=======
 import { prisma } from "@/lib/prisma";
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -18,15 +11,11 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
       variants: true,
     },
   });
->>>>>>> origin/main
 
   if (!product) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-<<<<<<< HEAD
-  return NextResponse.json({ product });
-=======
   const formattedProduct = {
     ...product,
     createdAt: product.createdAt.toISOString(),
@@ -35,21 +24,11 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   };
 
   return NextResponse.json({ product: formattedProduct });
->>>>>>> origin/main
 }
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const body = await request.json();
-<<<<<<< HEAD
-  const product = patchProduct(id, body);
-
-  if (!product) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ product });
-=======
 
   try {
     const existingProduct = await prisma.product.findUnique({
@@ -124,21 +103,10 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     console.error("Error updating product:", error);
     return NextResponse.json({ error: error.message || "Failed to update product" }, { status: 500 });
   }
->>>>>>> origin/main
 }
 
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-<<<<<<< HEAD
-  const product = softDeleteProduct(id);
-
-  if (!product) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ product });
-=======
-
   try {
     const product = await prisma.product.update({
       where: { id },
@@ -161,5 +129,4 @@ export async function DELETE(_request: NextRequest, context: { params: Promise<{
   } catch (error: any) {
     return NextResponse.json({ error: "Product not found or failed to delete" }, { status: 404 });
   }
->>>>>>> origin/main
 }

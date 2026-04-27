@@ -1,41 +1,84 @@
-import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
 
-export type CartItem = {
-  productSlug: string;
-  size: string;
-  color: string;
+export const addToCart = async ({
+  userId,
+  variantId,
+  quantity,
+}: {
+  userId: string;
+  variantId: string;
   quantity: number;
+}) => {
+  const existing = await prisma.cartItem.findUnique({
+    where: {
+      userId_variantId: {
+        userId,
+        variantId,
+      },
+    },
+  });
+
+  if (existing) {
+    return await prisma.cartItem.update({
+      where: { id: existing.id },
+      data: {
+        quantity: existing.quantity + quantity,
+      },
+    });
+  }
+
+  return await prisma.cartItem.create({
+    data: {
+      userId,
+      variantId,
+      quantity,
+    },
+  });
 };
 
-const CART_COOKIE = "cart";
+export const getCart = async (userId: string) => {
+  return await prisma.cartItem.findMany({
+    where: { userId },
+    include: {
+      variant: {
+        include: {
+          product: true,
+        },
+      },
+    },
+  });
+};
 
 
-export async function getCart(): Promise<CartItem[]> {
-  const cookieStore = await cookies();
-  const cartCookie = cookieStore.get(CART_COOKIE)?.value;
-  if (!cartCookie) return [];
-  try {
-    return JSON.parse(cartCookie);
-  } catch {
-    return [];
+export const updateCartItem = async ({
+  userId,
+  variantId,
+  quantity,
+}: {
+  userId: string;
+  variantId: string;
+  quantity: number;
+}) => {
+  if (quantity === 0) {
+    return await prisma.cartItem.delete({
+      where: {
+        userId_variantId: {
+          userId,
+          variantId,
+        },
+      },
+    });
   }
-}
 
-
-export async function addToCart(item: CartItem) {
-  const cart = await getCart();
-  const existing = cart.find(
-    (i) =>
-      i.productSlug === item.productSlug &&
-      i.size === item.size &&
-      i.color === item.color
-  );
-  if (existing) {
-    existing.quantity += item.quantity;
-  } else {
-    cart.push(item);
-  }
-  const cookieStore = await cookies();
-  cookieStore.set(CART_COOKIE, JSON.stringify(cart), { path: "/", httpOnly: false });
-  return cart;
-}
+  return await prisma.cartItem.update({
+    where: {
+      userId_variantId: {
+        userId,
+        variantId,
+      },
+    },
+     data: {
+    quantity: quantity, 
+  },
+  });
+};

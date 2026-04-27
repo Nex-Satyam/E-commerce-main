@@ -2,27 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-<<<<<<< HEAD
-import api from "@/lib/axios";
-=======
->>>>>>> origin/main
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ShieldCheck, Truck } from "lucide-react";
-
 import { CtaButton } from "@/components/home/cta-button";
-import { cartItems, getProductBySlug } from "@/components/home/home-data";
-<<<<<<< HEAD
-
 import { Card, CardContent } from "@/components/ui/card";
+import axios from "axios";
 
-
-import { useToast } from "@/components/ui/toast-context";
-
-
-=======
-import { Card, CardContent } from "@/components/ui/card";
-
->>>>>>> origin/main
 const quantityOptions = [0, 1, 2, 3, 4, 5];
 
 function parsePrice(price: string) {
@@ -38,62 +23,45 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-<<<<<<< HEAD
-
-
 function CartPageView() {
-  const [quantities, setQuantities] = useState<Record<string, number>>(
-    Object.fromEntries(cartItems.map((item) => [item.productSlug, item.quantity]))
-  );
-  const { showToast } = useToast();
-  const [isUpdating, setIsUpdating] = useState(false);
-=======
-export function CartPageView() {
-  const [quantities, setQuantities] = useState<Record<string, number>>(
-    Object.fromEntries(cartItems.map((item) => [item.productSlug, item.quantity])),
-  );
->>>>>>> origin/main
+  
+  const [item, setItem] = useState([]);
+useEffect(() => {
+  const fetchCart = async () => {
+    try {
+      const res = await axios.get("/api/cart");
+      const data = res.data;
+      console.log("Cart data:", data);
+      setItem(data.cart || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  const items = useMemo(() => {
-    return cartItems
-      .map((item) => {
-        const product = getProductBySlug(item.productSlug);
-<<<<<<< HEAD
-        if (!product) return undefined;
-        const quantity = quantities[item.productSlug] ?? item.quantity;
-        if (quantity <= 0) return undefined;
-        const unitPrice = parsePrice(product.price);
-=======
+  fetchCart();
+}, []);
+ const items = item.map((cartItem: any) => {
+  const product = cartItem.variant.product;
+  const quantity = cartItem.quantity;
+  const unitPrice = cartItem.variant.price;
 
-        if (!product) {
-          return null;
-        }
-
-        const quantity = quantities[item.productSlug] ?? item.quantity;
-
-        if (quantity <= 0) {
-          return null;
-        }
-
-        const unitPrice = parsePrice(product.price);
-
->>>>>>> origin/main
-        return {
-          ...item,
-          product,
-          quantity,
-          unitPrice,
-          totalPrice: unitPrice * quantity,
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [quantities]);
+  return {
+    ...cartItem,
+    product: {
+      ...product,
+      image: product.images?.[0]?.url,
+      price: unitPrice,
+      sku: cartItem.variant.sku,
+    },
+    quantity,
+    unitPrice,
+    totalPrice: unitPrice * quantity,
+    size: cartItem.variant.name,
+    color: "-",
+  };
+});
 
   const hasItems = items.length > 0;
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/main
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
   const shipping = hasItems ? (subtotal >= 180 ? 0 : 12) : 0;
   const tax = hasItems ? Number((subtotal * 0.08).toFixed(2)) : 0;
@@ -123,13 +91,13 @@ export function CartPageView() {
           <div className="cart-item-list">
             {hasItems ? (
               items.map((item) => (
-                <Card key={item.product.slug} className="cart-item-card py-0 shadow-none">
+                <Card key={item.variantId} className="cart-item-card py-0 shadow-none">
                   <CardContent className="cart-item-content">
-                    <Link href={`/products/${item.product.slug}`} className="cart-item-image-link">
+                    <Link href={`/products/slug/${item.product.slug}`} className="cart-item-image-link">
                       <div className="cart-item-image-wrap">
                         <Image
-                          src={item.product.image}
-                          alt={item.product.name}
+src={item.product.image || "/placeholder.png"}                 
+         alt={item.product.name}
                           fill
                           sizes="180px"
                           className="cart-item-image"
@@ -139,8 +107,8 @@ export function CartPageView() {
 
                     <div className="cart-item-copy">
                       <div className="cart-item-info">
-                        <p className="cart-item-tag">{item.product.tag}</p>
-                        <h2>{item.product.name}</h2>
+<p className="cart-item-tag">{item.product.tag || "Product"}</p>         
+               <h2>{item.product.name}</h2>
                         <p>{item.product.description}</p>
                       </div>
 
@@ -156,41 +124,21 @@ export function CartPageView() {
                         <span>Quantity</span>
                         <select
                           value={item.quantity}
-<<<<<<< HEAD
-                          disabled={isUpdating}
-                          onChange={async (event) => {
-                            const newQty = Number(event.target.value);
-                            setIsUpdating(true);
+                          onChange={async (e) => {
+                            const newQuantity = Number(e.target.value);
+                            console.log("Updating cart:", { variantId: item.variantId, quantity: newQuantity });
                             try {
-                              // Update local state immediately for responsiveness
-                              setQuantities((current) => ({
-                                ...current,
-                                [item.product.slug]: newQty,
-                              }));
-                              // Persist change to backend
-                              await api.post("/cart", {
-                                productSlug: item.product.slug,
-                                size: item.size,
-                                color: item.color,
-                                quantity: newQty,
+                              const patchRes = await axios.patch("/api/cart", {
+                                variantId: item.variantId,
+                                quantity: newQuantity,
                               });
-                              if (newQty === 0) {
-                                showToast(`${item.product.name} removed from cart.`, "info");
-                              } else {
-                                showToast(`${item.product.name} quantity updated.`, "success");
-                              }
+                              console.log("PATCH response:", patchRes.data);
+                              const res = await axios.get("/api/cart");
+                              console.log("Updated cart:", res.data.cart);
+                              setItem(res.data.cart || []);
                             } catch (err) {
-                              showToast("Failed to update cart.", "error");
-                            } finally {
-                              setIsUpdating(false);
+                              console.error(err);
                             }
-=======
-                          onChange={(event) => {
-                            setQuantities((current) => ({
-                              ...current,
-                              [item.product.slug]: Number(event.target.value),
-                            }));
->>>>>>> origin/main
                           }}
                         >
                           {quantityOptions.map((option) => (
@@ -256,13 +204,32 @@ export function CartPageView() {
 
               <div className="cart-summary-actions">
                 {hasItems ? (
-                  <CtaButton asChild className="cart-summary-button">
+                  <CtaButton  asChild  className="cart-summary-button">
                     <Link href="/checkout">Proceed to Checkout</Link>
                   </CtaButton>
                 ) : (
-                  <CtaButton className="cart-summary-button" disabled>
-                    Proceed to Checkout
-                  </CtaButton>
+                 <CtaButton
+  className="cart-summary-button"
+  onClick={async () => {
+    try {
+      const res = await axios.post("/api/checkout", {
+        addressId: "YOUR_ADDRESS_ID",
+      });
+
+      console.log("Order:", res.data);
+
+      alert("Order placed successfully 🎉");
+
+      window.location.href = "/orders";
+
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.error || "Checkout failed");
+    }
+  }}
+>
+  Proceed to Checkout
+</CtaButton>
                 )}
                 <CtaButton tone="light" className="cart-summary-button" disabled={!hasItems}>
                   Save for Later
@@ -283,10 +250,6 @@ export function CartPageView() {
       </section>
     </main>
   );
-<<<<<<< HEAD
 }
 
 export default CartPageView;
-=======
-}
->>>>>>> origin/main

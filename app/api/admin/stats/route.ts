@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
-<<<<<<< HEAD
 import { getStats } from "@/lib/admin-store";
-
-export async function GET() {
-  return NextResponse.json(getStats());
-=======
 import { prisma } from "@/lib/prisma";
+
 
 export async function GET() {
   const [totalOrders, pendingOrders, revenueResult, lowStockCount] = await Promise.all([
@@ -23,8 +19,7 @@ export async function GET() {
   return NextResponse.json({
     totalOrders,
     pendingOrders,
-    revenue: revenuePaise / 100, // PAISE to RUPEES
+    revenue: revenuePaise / 100, 
     lowStockCount,
   });
->>>>>>> origin/main
 }

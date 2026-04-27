@@ -3,18 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
-<<<<<<< HEAD
-import { Download, Eye } from "lucide-react";
-import type { AdminOrder, OrderStatus } from "@/components/admin/types";
-import { formatCurrency, formatDateInput, formatShortDate, orderStatusClass } from "@/components/admin/types";
-=======
 import { Download, Eye, ShoppingBag } from "lucide-react";
 import type { AdminOrder, OrderStatus } from "@/components/admin/types";
 import { formatCurrency, formatDateInput, formatShortDate, orderStatusClass } from "@/components/admin/types";
 import { SkeletonTable } from "./ui/skeleton-table";
 import { EmptyState } from "./ui/empty-state";
 import { Pagination } from "./ui/pagination";
->>>>>>> origin/main
 
 const statuses: Array<{ label: string; value: "" | OrderStatus }> = [
   { label: "All", value: "" },
@@ -36,10 +30,7 @@ export function OrdersListPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-<<<<<<< HEAD
-=======
   const [loading, setLoading] = useState(true);
->>>>>>> origin/main
 
   const from = formatDateInput(range?.from);
   const to = formatDateInput(range?.to);
@@ -54,10 +45,7 @@ export function OrdersListPage() {
 
   useEffect(() => {
     async function loadOrders() {
-<<<<<<< HEAD
-=======
       setLoading(true);
->>>>>>> origin/main
       const params = new URLSearchParams({
         status,
         search,
@@ -70,10 +58,7 @@ export function OrdersListPage() {
       const data = await response.json();
       setOrders(data.orders ?? []);
       setTotal(data.total ?? 0);
-<<<<<<< HEAD
-=======
       setLoading(false);
->>>>>>> origin/main
     }
 
     loadOrders();
@@ -174,7 +159,6 @@ export function OrdersListPage() {
         </div>
       </section>
 
-<<<<<<< HEAD
       <section className="rounded-md border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
@@ -252,7 +236,6 @@ export function OrdersListPage() {
           </div>
         </div>
       </section>
-=======
       {loading ? (
         <SkeletonTable columns={7} rows={10} />
       ) : orders.length === 0 ? (
@@ -313,7 +296,6 @@ export function OrdersListPage() {
           </div>
         </section>
       )}
->>>>>>> origin/main
     </div>
   );
 }

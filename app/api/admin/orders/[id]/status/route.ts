@@ -1,30 +1,12 @@
+
 import { NextRequest, NextResponse } from "next/server";
-<<<<<<< HEAD
-import { updateOrderStatus, type OrderStatus } from "@/lib/admin-store";
-
-export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const body = (await request.json()) as { status?: OrderStatus };
-
-  if (!body.status) {
-    return NextResponse.json({ error: "Status is required" }, { status: 400 });
-  }
-
-  const result = updateOrderStatus(id, body.status);
-
-  if (!result?.order) {
-    return NextResponse.json({ error: "Invalid order or status transition" }, { status: 400 });
-  }
-
-  return NextResponse.json(result);
-=======
+import { type OrderStatus, getValidNextStatuses } from "@/lib/admin-store";
 import { prisma } from "@/lib/prisma";
 import { adminOrderInclude, formatAdminOrder } from "@/lib/admin-orders";
-import { getValidNextStatuses } from "@/lib/admin-store";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
-import { NotifType, OrderStatus } from "@prisma/client";
+import { NotifType } from "@prisma/client";
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -62,7 +44,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       },
     });
 
-    // Notify user about status change
     const typeMap: Record<OrderStatus, NotifType> = {
       PENDING: "ORDER_PLACED",
       CONFIRMED: "ORDER_CONFIRMED",
@@ -78,5 +59,4 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     console.error("PATCH /api/admin/orders/[id]/status error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
->>>>>>> origin/main
 }

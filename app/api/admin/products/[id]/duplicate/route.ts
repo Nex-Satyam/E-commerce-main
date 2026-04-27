@@ -1,24 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-<<<<<<< HEAD
-import { duplicateProduct } from "@/lib/admin-store";
-
-export async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const product = duplicateProduct(id);
-
-  if (!product) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ product }, { status: 201 });
-=======
 import { prisma } from "@/lib/prisma";
 
 function generateSlug(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
-}
 
-export async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
 
   try {
@@ -86,5 +72,5 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
     console.error("Error duplicating product:", error);
     return NextResponse.json({ error: "Failed to duplicate product" }, { status: 500 });
   }
->>>>>>> origin/main
+}
 }

@@ -1,22 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-<<<<<<< HEAD
-import { Search, UserMinus, UserPlus, ShieldAlert, ShieldCheck, ShoppingBag, Info } from "lucide-react";
-=======
 import { Search, UserMinus, UserPlus, ShieldAlert, ShieldCheck, ShoppingBag, Info, Users } from "lucide-react";
->>>>>>> origin/main
 import type { AdminUser } from "@/components/admin/types";
 import { formatShortDate, roleStatusClass } from "@/components/admin/types";
 import { UserDetailDrawer } from "./user-detail-drawer";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
-<<<<<<< HEAD
-=======
 import { SkeletonTable } from "./ui/skeleton-table";
 import { EmptyState } from "./ui/empty-state";
 import { Pagination } from "./ui/pagination";
->>>>>>> origin/main
 
 const pageSize = 20;
 
@@ -29,10 +22,7 @@ export function UsersListPage() {
   const [total, setTotal] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
-<<<<<<< HEAD
-=======
   const [loading, setLoading] = useState(true);
->>>>>>> origin/main
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -43,10 +33,7 @@ export function UsersListPage() {
   }, [searchInput]);
 
   async function loadUsers() {
-<<<<<<< HEAD
-=======
-    setLoading(true);
->>>>>>> origin/main
+  setLoading(true);
     const params = new URLSearchParams({
       search,
       page: String(page),
@@ -60,11 +47,8 @@ export function UsersListPage() {
     } catch (error) {
       console.error("Failed to load users:", error);
       toast.error("Failed to load users.");
-<<<<<<< HEAD
-=======
     } finally {
       setLoading(false);
->>>>>>> origin/main
     }
   }
 
@@ -76,10 +60,7 @@ export function UsersListPage() {
 
   async function handleToggleBan(user: AdminUser) {
     setIsUpdating(user.id);
-<<<<<<< HEAD
-=======
-    // Optimistic UI could be applied here if we want, but since it's banning, maybe wait for response
->>>>>>> origin/main
+  // Optimistic UI could be applied here if we want, but since it's banning, maybe wait for response
     try {
       const response = await fetch(`/api/admin/users/${user.id}`, {
         method: "PATCH",
@@ -143,146 +124,6 @@ export function UsersListPage() {
         </div>
       </section>
 
-<<<<<<< HEAD
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
-              <tr>
-                <th className="px-6 py-4">User</th>
-                <th className="px-6 py-4">Role</th>
-                <th className="px-6 py-4 text-center">Orders</th>
-                <th className="px-6 py-4">Joined Date</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50/50 group transition duration-200">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-9 items-center justify-center rounded-full bg-slate-900 font-semibold text-white uppercase text-xs">
-                        {user.name[0]}
-                      </div>
-                      <div className="grid">
-                        <p className="font-bold text-slate-900 group-hover:text-blue-600 transition">{user.name}</p>
-                        <p className="text-xs text-slate-500">{user.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${roleStatusClass[user.role]}`}>
-                        {user.role}
-                      </span>
-                      {user.isSuperAdmin && (
-                        <span className="inline-flex w-fit items-center gap-1 text-[10px] font-bold text-blue-600 uppercase">
-                          <ShieldCheck className="size-3" />
-                          Super
-                        </span>
-                      )}
-                      {user.isBanned && (
-                        <span className="inline-flex w-fit items-center gap-1 text-[10px] font-bold text-red-600 uppercase">
-                          <ShieldAlert className="size-3" />
-                          Banned
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-center font-semibold text-slate-700">
-                    {user._count.orders}
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">
-                    {formatShortDate(user.createdAt)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                       <button
-                        onClick={() => setSelectedUserId(user.id)}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
-                        title="Quick View"
-                      >
-                        <Info className="size-3.5" />
-                        Details
-                      </button>
-                      <a
-                        href={`/admin/orders?userId=${user.id}`}
-                        className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition"
-                        title="View Orders"
-                      >
-                        <ShoppingBag className="size-4" />
-                      </a>
-                      
-                      {session?.user.isSuperAdmin && user.role !== "ADMIN" && (
-                         <button
-                           disabled={isUpdating === user.id}
-                           onClick={() => handlePromote(user)}
-                           className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-purple-50 hover:text-purple-600 transition"
-                           title="Promote to Admin"
-                         >
-                           <UserPlus className="size-4" />
-                         </button>
-                      )}
-
-                      <button
-                        disabled={isUpdating === user.id || (user.isSuperAdmin && user.id !== session?.user.id)}
-                        onClick={() => handleToggleBan(user)}
-                        className={[
-                          "inline-flex size-9 items-center justify-center rounded-lg border transition",
-                          user.isBanned 
-                            ? "border-green-100 text-green-600 hover:bg-green-100" 
-                            : "border-red-100 text-red-600 hover:bg-red-100"
-                        ].join(" ")}
-                        title={user.isBanned ? "Unban User" : "Ban User"}
-                      >
-                        {user.isBanned ? <UserPlus className="size-4" /> : <UserMinus className="size-4" />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {users.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-20 text-center text-slate-500">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="flex size-14 items-center justify-center rounded-full bg-slate-50 text-slate-200">
-                        <Search className="size-6" />
-                      </div>
-                      <p className="font-semibold text-slate-900">No users found</p>
-                      <p className="text-sm">Try adjusting your search criteria.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/50 px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-          <span>
-            Page {page} of {totalPages} · {total} Users
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={page === 1}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              className="h-9 min-w-[80px] rounded-lg border border-slate-200 bg-white px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50 active:scale-[0.98] transition"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={page === totalPages}
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              className="h-9 min-w-[80px] rounded-lg border border-slate-200 bg-white px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50 active:scale-[0.98] transition"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </section>
-=======
       {loading ? (
         <SkeletonTable columns={5} rows={10} />
       ) : users.length === 0 ? (
@@ -323,7 +164,7 @@ export function UsersListPage() {
                         <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${roleStatusClass[user.role]}`}>
                           {user.role}
                         </span>
-                        {user.role && (
+                        {user.isSuperAdmin && (
                           <span className="inline-flex w-fit items-center gap-1 text-[10px] font-bold text-blue-600 uppercase">
                             <ShieldCheck className="size-3" />
                             Super
@@ -345,7 +186,7 @@ export function UsersListPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                         <button
+                        <button
                           onClick={() => setSelectedUserId(user.id)}
                           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
                           title="Quick View"
@@ -360,20 +201,18 @@ export function UsersListPage() {
                         >
                           <ShoppingBag className="size-4" />
                         </a>
-                        
-                        {session?.user.role && user.role !== "ADMIN" && (
-                           <button
-                             disabled={isUpdating === user.id}
-                             onClick={() => handlePromote(user)}
-                             className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-purple-50 hover:text-purple-600 transition"
-                             title="Promote to Admin"
-                           >
-                             <UserPlus className="size-4" />
-                           </button>
+                        {session?.user.isSuperAdmin && user.role !== "ADMIN" && (
+                          <button
+                            disabled={isUpdating === user.id}
+                            onClick={() => handlePromote(user)}
+                            className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-purple-50 hover:text-purple-600 transition"
+                            title="Promote to Admin"
+                          >
+                            <UserPlus className="size-4" />
+                          </button>
                         )}
-  
                         <button
-                          disabled={isUpdating === user.id || (user.role && user.id !== session?.user.id)}
+                          disabled={isUpdating === user.id || (user.isSuperAdmin && user.id !== session?.user.id)}
                           onClick={() => handleToggleBan(user)}
                           className={[
                             "inline-flex size-9 items-center justify-center rounded-lg border transition",
@@ -392,14 +231,11 @@ export function UsersListPage() {
               </tbody>
             </table>
           </div>
-  
           <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-4 text-xs font-semibold uppercase tracking-wider">
             <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </section>
       )}
->>>>>>> origin/main
-
       <UserDetailDrawer 
         userId={selectedUserId} 
         onClose={() => setSelectedUserId(null)} 

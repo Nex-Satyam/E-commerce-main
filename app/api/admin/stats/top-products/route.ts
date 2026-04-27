@@ -1,10 +1,4 @@
 import { NextResponse } from "next/server";
-<<<<<<< HEAD
-import { getTopProducts } from "@/lib/admin-store";
-
-export async function GET() {
-  return NextResponse.json(getTopProducts());
-=======
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -41,5 +35,4 @@ export async function GET() {
     .slice(0, 5);
 
   return NextResponse.json(topProducts);
->>>>>>> origin/main
 }

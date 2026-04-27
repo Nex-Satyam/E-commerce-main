@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-// Notification modal removed. Placeholder for future implementation.
-=======
 "use client";
 import { useEffect } from "react";
 
@@ -41,4 +38,3 @@ export function NotificationModal({ open, message, onClose }: { open: boolean; m
     </div>
   );
 }
->>>>>>> origin/main

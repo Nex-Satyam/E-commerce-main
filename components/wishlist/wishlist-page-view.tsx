@@ -1,5 +1,4 @@
 "use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Heart, ShoppingBag } from "lucide-react";
@@ -8,19 +7,11 @@ import { CtaButton } from "@/components/home/cta-button";
 import { getProductBySlug } from "@/components/home/home-data";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import { Card, CardContent } from "@/components/ui/card";
-<<<<<<< HEAD
 
-import { useNotification } from "@/components/ui/notification-context";
-
-export function WishlistPageView() {
-  const { wishlistSlugs, toggleWishlist } = useWishlist();
-  const { showNotification } = useNotification();
-=======
 import { Button } from "@/components/ui/button";
 
 export function WishlistPageView() {
   const { wishlistSlugs, toggleWishlist } = useWishlist();
->>>>>>> origin/main
   const items = wishlistSlugs
     .map((slug) => getProductBySlug(slug))
     .filter((product): product is NonNullable<typeof product> => Boolean(product));
@@ -78,14 +69,10 @@ export function WishlistPageView() {
                           className="wishlist-toggle-button is-active"
                           aria-label={`Remove ${product.name} from wishlist`}
                           aria-pressed="true"
-<<<<<<< HEAD
                           onClick={() => {
                             toggleWishlist(product.slug);
-                            showNotification("Removed from wishlist");
+
                           }}
-=======
-                          onClick={() => toggleWishlist(product.slug)}
->>>>>>> origin/main
                         >
                           <Heart className="size-4 fill-current" />
                         </Button>

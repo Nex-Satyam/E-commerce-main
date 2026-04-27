@@ -2,32 +2,20 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
-<<<<<<< HEAD
-export async function PATCH(request: Request, context: { params: { id: string } }) {
-=======
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
->>>>>>> origin/main
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-<<<<<<< HEAD
-    const { id } = context.params;
-    const body = await request.json();
-    const { role, isBanned } = body;
-
-    if (role && !session.user.isSuperAdmin) {
-=======
     const { id } = await context.params;
     const body = await request.json();
     const { role, isBanned } = body;
 
     // Prevent non-superadmins from changing roles
     if (role && session.user.role !== "ADMIN") {
->>>>>>> origin/main
       return NextResponse.json(
         { error: "Forbidden: Only Super Admins can promote users" },
         { status: 403 }
