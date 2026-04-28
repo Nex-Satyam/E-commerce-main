@@ -1,9 +1,13 @@
 import Link from "next/link";
-import { ArrowUpRight, Clock3, Mail, MapPin, Phone, Sparkles } from "lucide-react";
+import { Mail, Phone, ArrowUpRight } from "lucide-react";
 
-import { footerLinks, footerSections, socialLinks } from "@/components/home/home-data";
-import { CtaButton } from "@/components/home/cta-button";
+import {
+  footerSections,
+  socialLinks,
+} from "@/components/home/home-data";
+
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 function isInternalLink(href: string) {
   return href.startsWith("/") && !href.startsWith("mailto:") && !href.startsWith("tel:");
@@ -11,166 +15,123 @@ function isInternalLink(href: string) {
 
 export function SiteFooter() {
   return (
-    <footer className="site-footer" id="footer">
-      <div className="footer-ambient footer-ambient-one" aria-hidden="true" />
-      <div className="footer-ambient footer-ambient-two" aria-hidden="true" />
+    <footer
+      id="footer"
+      className="bg-[#2C2C2A] text-white"
+    >
+      <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
+        {/* Top Section */}
+        <div className="grid gap-12 lg:grid-cols-4 border-b border-white/10 pb-12">
+          {/* Brand */}
+          <div className="lg:col-span-1">
+            <Link href="/" className="text-2xl font-bold tracking-tight text-white">
+              ASR
+            </Link>
 
-      <div className="footer-hero-row">
-        <div className="footer-brand-panel">
-          <div className="footer-minimal-brand">
-            <div className="footer-brand-mark">
-              <span>ASR</span>
-            </div>
-            <div className="footer-brand-copy">
-              <p className="eyebrow">Offwhite Atelier</p>
-              <h2>Quiet essentials for a cleaner wardrobe.</h2>
-              <p className="footer-brand-description">
-                Designed in New Delhi with a softer palette, refined tailoring,
-                and everyday silhouettes that feel elevated without excess.
-              </p>
+            <p className="mt-4 text-sm leading-7 text-white/70">
+              Premium essentials crafted for modern wardrobes. Clean silhouettes,
+              elevated basics, and timeless style.
+            </p>
+
+            <div className="mt-6 space-y-3 text-sm text-white/70">
+              <a
+                href="mailto:hello@nexgen.com"
+                className="flex items-center gap-2 hover:text-[#EF9F27]"
+              >
+                <Mail size={16} />
+                hello@nexgen.com
+              </a>
+
+              <a
+                href="tel:+919876543210"
+                className="flex items-center gap-2 hover:text-[#EF9F27]"
+              >
+                <Phone size={16} />
+                +91 98765 43210
+              </a>
             </div>
           </div>
 
-          <div className="footer-feature-pills">
-            <span className="footer-feature-pill">
-              <Sparkles className="size-4" /> Styling-led edits every week
-            </span>
-            <span className="footer-feature-pill">
-              <MapPin className="size-4" /> Crafted for city dressing in India
-            </span>
-            <span className="footer-feature-pill">
-              <Clock3 className="size-4" /> Fast response from client care
-            </span>
-          </div>
+          {/* Footer Links */}
+          {footerSections.map((section) => (
+            <div key={section.title}>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-white">
+                {section.title}
+              </h3>
 
-          <div className="footer-brand-stats">
-            <div className="footer-stat-card">
-              <strong>24h</strong>
-              <span>Average client-care response</span>
+              <div className="mt-4 space-y-3">
+                {section.links.map((link) =>
+                  isInternalLink(link.href) ? (
+                    <Link
+                      key={link.label}
+                      href={link.href}
+                      className="block text-sm text-white/70 hover:text-[#EF9F27]"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      key={link.label}
+                      href={link.href}
+                      className="block text-sm text-white/70 hover:text-[#EF9F27]"
+                    >
+                      {link.label}
+                    </a>
+                  )
+                )}
+              </div>
             </div>
-            <div className="footer-stat-card">
-              <strong>14 days</strong>
-              <span>Easy return support window</span>
-            </div>
-            <div className="footer-stat-card">
-              <strong>Curated</strong>
-              <span>Seasonal edits in limited runs</span>
-            </div>
-          </div>
+          ))}
         </div>
 
-        <div className="footer-highlight-card">
-          <p className="eyebrow">Client Care</p>
-          <h3>Stay close to new drops and private edits.</h3>
-          <p>
-            Reach our team for sizing, delivery guidance, appointment requests,
-            and seasonal curation recommendations.
-          </p>
-          <a className="footer-mail-link footer-mail-link-hero" href="mailto:hello@offwhiteatelier.com">
-            <Mail className="size-4" /> hello@offwhiteatelier.com
-          </a>
-          <a className="footer-mail-link footer-mail-link-hero" href="tel:+919876543210">
-            <Phone className="size-4" /> +91 98765 43210
-          </a>
-          <div className="footer-highlight-meta">
-            <span>Mon to Sat, 10:00 AM to 8:00 PM</span>
-            <span>New Delhi studio appointments available</span>
+        {/* Newsletter */}
+        <div className="grid gap-8 border-b border-white/10 py-10 lg:grid-cols-2 lg:items-center">
+          <div>
+            <h3 className="text-xl font-semibold text-white">
+              Join Our Newsletter
+            </h3>
+            <p className="mt-2 text-sm text-white/70">
+              Get updates on new arrivals, exclusive offers, and product drops.
+            </p>
           </div>
 
-          <div className="footer-highlight-badges">
-            <span className="footer-highlight-badge">Private styling</span>
-            <span className="footer-highlight-badge">Delivery support</span>
-            <span className="footer-highlight-badge">Occasion edits</span>
-          </div>
-
-          <form className="footer-subscribe-form">
+          <form className="flex flex-col gap-3 sm:flex-row">
             <Input
               type="email"
-              placeholder="Enter your email for atelier notes"
-              className="footer-subscribe-input"
+              placeholder="Enter your email"
+              className="h-11 border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:border-[#185FA5]"
             />
-            <CtaButton type="submit" className="footer-subscribe-button">
+            <Button className="h-11 bg-[#185FA5] px-6 text-white hover:bg-[#154f89]">
               Subscribe
-            </CtaButton>
+            </Button>
           </form>
         </div>
-      </div>
 
-      <div className="footer-link-grid">
-        {footerSections.map((section) => (
-          <div key={section.title} className="footer-link-column">
-            <p className="footer-link-column-title">{section.title}</p>
-            <div className="footer-link-list">
-              {section.links.map((link) =>
-                isInternalLink(link.href) ? (
-                  <Link key={link.label} href={link.href}>
-                    {link.label}
-                  </Link>
-                ) : (
-                  <a key={link.label} href={link.href}>
-                    {link.label}
-                  </a>
-                ),
-              )}
-            </div>
-          </div>
-        ))}
+        {/* Bottom Bar */}
+        <div className="flex flex-col gap-6 pt-8 text-sm text-white/60 lg:flex-row lg:items-center lg:justify-between">
+          <p>© 2026 ASR. All rights reserved.</p>
 
-        <div className="footer-link-column footer-link-column-wide">
-          <p className="footer-link-column-title">From The Atelier</p>
-          <div className="footer-note-card">
-            <p>
-              Minimal dressing notes, early access product alerts, and select
-              editorial drops curated for repeat wear.
-            </p>
-            <div className="footer-minimal-links">
-              {footerLinks.slice(0, 3).map((link) =>
-                isInternalLink(link.href) ? (
-                  <Link key={link.href} href={link.href}>
-                    {link.label}
-                  </Link>
-                ) : (
-                  <a key={link.href} href={link.href}>
-                    {link.label}
-                  </a>
-                ),
-              )}
-            </div>
-            <div className="footer-note-grid">
-              <div className="footer-note-pill">
-                <span>Appointments</span>
-                <strong>Private studio visits available</strong>
-              </div>
-              <div className="footer-note-pill">
-                <span>Shipping</span>
-                <strong>Complimentary over ₹120</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="footer-minimal-bottom">
-        <div className="footer-meta-inline">
-          <p>© 2026 ASR Offwhite Atelier</p>
-          <span>New Delhi, India</span>
-          <span>Mon to Sat, 10:00 AM to 8:00 PM</span>
-        </div>
-
-        <div className="footer-actions-inline">
-          <a className="footer-mail-link" href="mailto:hello@offwhiteatelier.com">
-            <Mail className="size-4" /> hello@offwhiteatelier.com
-          </a>
-          <div className="footer-inline-links">
+          <div className="flex flex-wrap items-center gap-5">
             {socialLinks.map((link) => (
-              <a key={link.label} href={link.href} target="_blank" rel="noreferrer">
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-[#EF9F27]"
+              >
                 {link.label}
               </a>
             ))}
+
+            <a
+              href="#top"
+              className="inline-flex items-center gap-1 hover:text-[#EF9F27]"
+            >
+              Back to top
+              <ArrowUpRight size={14} />
+            </a>
           </div>
-          <a className="footer-back-top" href="#slider">
-            Back to top <ArrowUpRight className="size-4" />
-          </a>
         </div>
       </div>
     </footer>

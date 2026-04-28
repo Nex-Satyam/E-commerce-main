@@ -2,28 +2,113 @@
 
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
+import { products as fallbackProducts } from "@/components/home/home-data";
+
+const HOME_FETCH_TIMEOUT_MS = 3000;
+
+type HeroProduct = Omit<(typeof fallbackProducts)[number], "images"> & {
+  id?: string;
+  images?: Array<string | { url?: string | null; altText?: string | null }>;
+};
+
+function getProductImage(product: HeroProduct) {
+  const firstImage = product.images?.[0];
+
+  if (!firstImage) return "/placeholder.png";
+  if (typeof firstImage === "string") return firstImage;
+  if (typeof firstImage === "object" && "url" in firstImage && typeof firstImage.url === "string") {
+    return firstImage.url;
+  }
+
+  return "/placeholder.png";
+}
+
+const HeroSlides = memo(function HeroSlides({
+  products,
+  activeIndex,
+  onOpenProduct,
+}: {
+  products: HeroProduct[];
+  activeIndex: number;
+  onOpenProduct: (product: HeroProduct) => void;
+}) {
+  return (
+    <div
+      className="slider-track"
+      style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+    >
+      {products.map((product, index) => (
+        <div
+          key={`${product.id ?? product.slug}-${index}`}
+          className="slide-link cursor-pointer"
+          aria-label={`${product.name} - open product`}
+          onClick={() => onOpenProduct(product)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpenProduct(product);
+            }
+          }}
+        >
+          <div className="slide-image-wrap slide-image-only">
+            <Image
+              src={getProductImage(product)}
+              alt={product.name}
+              fill
+              priority={index === 0}
+              sizes="(max-width: 900px) 100vw, 50vw"
+              className="slide-image"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
 
 export function HeroSlider() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [products, setProducts] = useState<any[]>([]);
-  const [typedName, setTypedName] = useState("");
-  const [typedDescription, setTypedDescription] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [products, setProducts] = useState<HeroProduct[]>(fallbackProducts);
   const router = useRouter();
   const activeProduct = products[activeIndex];
+  const activeDescription = activeProduct?.description || "No description available.";
 
   useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), HOME_FETCH_TIMEOUT_MS);
+
     async function fetchProducts() {
-      const res = await fetch("/api/product/random");
-      const data = await res.json();
-      setProducts(data);
+      try {
+        const res = await fetch("/api/product/random", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        const data = await res.json();
+
+        if (Array.isArray(data) && data.length > 0) {
+          setProducts(data);
+          setActiveIndex(0);
+        }
+      } catch {
+        // Keep the local fallback products if the database is slow or offline.
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
     }
+
     fetchProducts();
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -33,49 +118,6 @@ export function HeroSlider() {
     }, 4000);
     return () => window.clearInterval(intervalId);
   }, [products]);
-
-  useEffect(() => {
-    if (!activeProduct) {
-      setTypedName("");
-      setTypedDescription("");
-      setIsTyping(false);
-      return;
-    }
-
-    const name = activeProduct.name || "";
-    const description = activeProduct.description || "No description available.";
-    const fullText = `${name}\n${description}`;
-    let characterIndex = 0;
-    let timeoutId: number;
-
-    setTypedName("");
-    setTypedDescription("");
-    setIsTyping(true);
-
-    const typeNextCharacter = () => {
-      characterIndex += 1;
-      const visibleText = fullText.slice(0, characterIndex);
-      const [nextName = "", nextDescription = ""] = visibleText.split("\n");
-
-      setTypedName(nextName);
-      setTypedDescription(nextDescription);
-
-      if (characterIndex >= fullText.length) {
-        setIsTyping(false);
-        return;
-      }
-
-      const currentCharacter = fullText[characterIndex - 1];
-      const nextDelay =
-        currentCharacter === "\n" ? 180 : currentCharacter === " " ? 34 : 22;
-
-      timeoutId = window.setTimeout(typeNextCharacter, nextDelay);
-    };
-
-    timeoutId = window.setTimeout(typeNextCharacter, 120);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [activeProduct]);
 
   const goToPrevious = () => {
     setActiveIndex((currentIndex) =>
@@ -87,15 +129,22 @@ export function HeroSlider() {
     setActiveIndex((currentIndex) => (currentIndex + 1) % products.length);
   };
 
+  const openProduct = useCallback(
+    (product: HeroProduct) => {
+      router.push(`/products/${product.slug}`);
+    },
+    [router],
+  );
+
   return (
     <section className="hero-shell" id="slider">
       <div className="hero-copy">
         {activeProduct ? (
           <>
             <p className="eyebrow">Featured Product</p>
-            <div className={isTyping ? "typing-block is-typing" : "typing-block"}>
-              <h2 className="typing-text">{typedName}</h2>
-              <p className="typing-text">{typedDescription}</p>
+            <div className="typing-block" key={activeProduct.slug}>
+              <h2 className="typing-text">{activeProduct.name}</h2>
+              <p className="typing-text">{activeDescription}</p>
             </div>
             <div className="hero-actions">
               <CtaButton asChild>
@@ -117,49 +166,7 @@ export function HeroSlider() {
 
       <div className="slider-shell">
         <div className="slider" aria-label="Featured clothing banners">
-          <div
-            className="slider-track"
-            style={{ transform: `translateX(-${activeIndex * 100}%)` }}
-          >
-            {products.map((product, index) => (
-              <div
-                key={product.id}
-                className="slide-link cursor-pointer"
-                aria-label={`${product.name} - open product`}
-                onClick={async () => {
-                  try {
-                    const res = await fetch(`/api/product/slug/${product.slug}`);
-                    const data = await res.json();
-                    if (data && data.success !== false) {
-                      router.push(`/products/${product.slug}`);
-                    } else {
-                      alert("Product not found or unavailable.");
-                    }
-                  } catch (e) {
-                    alert("Error loading product details.");
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={e => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    (e.target as HTMLElement).click();
-                  }
-                }}
-              >
-                <div className="slide-image-wrap slide-image-only">
-                  <Image
-                    src={product.images?.[0]?.url || "/placeholder.png"}
-                    alt={product.name}
-                    fill
-                    priority={index === 0}
-                    sizes="(max-width: 900px) 100vw, 50vw"
-                    className="slide-image"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <HeroSlides products={products} activeIndex={activeIndex} onOpenProduct={openProduct} />
         </div>
         <div className="slider-controls">
           <div className="slider-arrows">
@@ -187,7 +194,7 @@ export function HeroSlider() {
           <div className="slider-dots" aria-label="Choose slide">
             {products.map((product, index) => (
               <button
-                key={product.id}
+                key={`${product.id ?? product.slug}-dot-${index}`}
                 type="button"
                 className={index === activeIndex ? "slider-dot is-active" : "slider-dot"}
                 onClick={() => setActiveIndex(index)}

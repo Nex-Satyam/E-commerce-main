@@ -1,5 +1,6 @@
 import {
   getAllProductsService,
+  getProductCardsService,
   getProductBySlugService,
 } from "@/services/product.service";
 import { getProductByIdService } from "@/services/product.service";
@@ -13,13 +14,30 @@ export const getAllProductsController = async () => {
       success: true,
       data: products,
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       message: "Failed to fetch products",
     };
   }
 };
+
+export const getProductCardsController = async () => {
+  try {
+    const products = await getProductCardsService();
+
+    return {
+      success: true,
+      data: products,
+    };
+  } catch {
+    return {
+      success: false,
+      message: "Failed to fetch product cards",
+    };
+  }
+};
+
 export const getProductByIdController = async (id: string) => {
   try {
     const product = await getProductByIdService(id);

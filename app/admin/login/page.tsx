@@ -8,8 +8,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 const MOCK_ADMIN = {
-  email: "admin@nex.com",
-  password: "admin123",
+  email: "admin@example.com",
+  password: "Admin@123",
   name: "maiAdminHoon",
   role: "ADMIN",
 };
@@ -117,7 +117,7 @@ export default function AdminLoginPage() {
                 id="admin-email"
                 type="email"
                 {...register("email")}
-                placeholder="admin@nex.com"
+                placeholder="admin@example.com"
                 autoComplete="email"
                 className={emailInputClass}
                 aria-invalid={Boolean(errors.email)}

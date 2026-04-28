@@ -3,32 +3,44 @@
 import { products } from "@/components/home/home-data";
 import ProductCard from "@/components/home/product-card";
 import { SectionHeading } from "@/components/home/section-heading";
-import axios from "@/lib/axios";
 import { useEffect, useState } from "react";
 
+const HOME_FETCH_TIMEOUT_MS = 3000;
 
 export function ProductsSection() {
   const [featuredProducts, setFeaturedProducts] = useState(products);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), HOME_FETCH_TIMEOUT_MS);
+
     const fetchFeaturedProducts = async () => {
       try {
-        const response = await axios.get("/product");
-        console.log("API response:", response);
-        if (response?.data?.success) {
-          setFeaturedProducts(response.data.data || []);
+        const response = await fetch("/api/product?view=card", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        const data = await response.json();
+
+        if (data?.success && Array.isArray(data.data) && data.data.length > 0) {
+          setFeaturedProducts(data.data.slice(0, 12));
         }
-      } catch (err) {
-        console.error("Error fetching products:", err);
-        setError("Failed to load products");
+      } catch {
+        if (!controller.signal.aborted) {
+          setError("Showing saved products while live products load.");
+        }
       } finally {
-        setLoading(false);
+        window.clearTimeout(timeoutId);
       }
     };
 
     fetchFeaturedProducts();
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, []);
 
   return (
@@ -40,21 +52,17 @@ export function ProductsSection() {
         split
       />
 
-      {loading && <p>Loading products...</p>}
-
       {error && <p className="text-red-500">{error}</p>}
 
-      {!loading && !error && (
-        <div className="product-grid">
-          {featuredProducts.length > 0 ? (
-            featuredProducts.map((product) => (
-              <ProductCard key={product.slug} product={product} />
-            ))
-          ) : (
-            <p>No products found</p>
-          )}
-        </div>
-      )}
+      <div className="product-grid">
+        {featuredProducts.length > 0 ? (
+          featuredProducts.map((product, index) => (
+            <ProductCard key={product.slug} product={product} priority={index < 4} />
+          ))
+        ) : (
+          <p>No products found</p>
+        )}
+      </div>
     </section>
   );
 }

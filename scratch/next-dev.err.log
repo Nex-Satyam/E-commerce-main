@@ -1,0 +1,29 @@
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `HeroSlider`. See https://react.dev/link/warning-keys for more information.
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `HeroSlider`. See https://react.dev/link/warning-keys for more information. 
+[browser] Image with src "https://images.unsplash.com/photo-1582552938357-32b906df40cb" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+⨯ ReferenceError: e is not defined
+    at module evaluation (components\home\site-footer.tsx:139:2)
+    at module evaluation (app\page.tsx:5:1)
+    at module evaluation (C:\NEXGEN\Admin\E-commerce\.next\dev\server\chunks\ssr\[root-of-the-server]__0wqo2rd._.js:1428:47)
+  137 |     </footer>
+  138 |   );
+> 139 | }e
+      |  ^
+⨯ ReferenceError: e is not defined
+    at module evaluation (components\home\site-footer.tsx:139:2)
+    at module evaluation (app\page.tsx:5:1)
+    at module evaluation (C:\NEXGEN\Admin\E-commerce\.next\dev\server\chunks\ssr\[root-of-the-server]__0wqo2rd._.js:1428:47)
+  137 |     </footer>
+  138 |   );
+> 139 | }e
+      |  ^ {
+  page: '/'
+}
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `HeroSlider`. See https://react.dev/link/warning-keys for more information. 

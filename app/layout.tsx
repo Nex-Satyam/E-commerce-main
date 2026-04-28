@@ -1,33 +1,51 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Manrope, Geist } from "next/font/google";
+import {
+  Playfair_Display,
+  Geist,
+  DM_Sans,
+} from "next/font/google";
+
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import ClientLayout from "@/components/ClientLayout";
-import { AuthProvider } from "@/components/auth/auth-provider";
-import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
 import { ClientProviders } from "@/components/auth/client-providers";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 const displayFont = Playfair_Display({
   variable: "--font-display",
   subsets: ["latin"],
 });
 
-const bodyFont = Manrope({
+const bodyFont = DM_Sans({
   variable: "--font-body",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Offwhite Atelier | Clothing Store",
+  title: "NexGen",
   description: "A refined off-white themed fashion storefront homepage.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" className={cn(displayFont.variable, bodyFont.variable, "font-sans", geist.variable)}>
-      <body className="antialiased">
+    <html
+      lang="en"
+      className={cn(
+        geist.variable,
+        displayFont.variable,
+        bodyFont.variable,
+        "font-sans"
+      )}
+    >
+      <body className="antialiased bg-[#F1EFE8] text-[#2C2C2A]">
         <ClientProviders>
           <ClientLayout>{children}</ClientLayout>
         </ClientProviders>

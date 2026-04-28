@@ -320,7 +320,7 @@ export type ProductItem = {
     { label: "Policy", href: "/policy" },
     { label: "How To Use", href: "/how-to-use" },
     { label: "Terms", href: "/terms-and-conditions" },
-    { label: "hello@offwhiteatelier.com", href: "mailto:hello@offwhiteatelier.com" },
+    { label: "hello@nexgen.com", href: "mailto:hello@nexgen.com" },
   ];
 
   export const footerSections: FooterSection[] = [
@@ -336,7 +336,7 @@ export type ProductItem = {
     {
       title: "Support",
       links: [
-        { label: "Contact Us", href: "mailto:hello@offwhiteatelier.com" },
+        { label: "Contact Us", href: "mailto:hello@nexgen.com" },
         { label: "How To Use", href: "/how-to-use" },
         { label: "Shipping & Returns", href: "/policy" },
         { label: "Track Order", href: "/policy" },

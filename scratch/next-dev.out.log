@@ -1,0 +1,106 @@
+
+> ecommerce-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.12:3000
+- Environments: .env
+✓ Ready in 799ms
+Creating turbopack project { dir: 'C:\\NEXGEN\\Admin\\E-commerce', testMode: true }
+
+ GET / 200 in 2.2s (next.js: 1621ms, application-code: 605ms)
+ GET /api/auth/session 200 in 1293ms (next.js: 1264ms, application-code: 29ms)
+ GET /api/auth/session 200 in 24ms (next.js: 10ms, application-code: 14ms)
+ GET /api/product?view=card 200 in 1812ms (next.js: 249ms, application-code: 1563ms)
+ GET /api/product/random 200 in 2.4s (next.js: 138ms, application-code: 2.3s)
+✓ Compiled in 261ms
+ GET / 200 in 117ms (next.js: 70ms, application-code: 47ms)
+ GET / 200 in 207ms (next.js: 46ms, application-code: 161ms)
+ GET /api/product?view=card 200 in 476ms (next.js: 41ms, application-code: 435ms)
+ GET /api/product/random 200 in 533ms (next.js: 21ms, application-code: 511ms)
+ GET / 200 in 190ms (next.js: 9ms, application-code: 181ms)
+✓ Compiled in 265ms
+ GET / 200 in 273ms (next.js: 169ms, application-code: 105ms)
+ GET / 200 in 177ms (next.js: 49ms, application-code: 128ms)
+ GET / 200 in 74ms (next.js: 5ms, application-code: 69ms)
+ GET / 200 in 171ms (next.js: 3ms, application-code: 167ms)
+ GET /api/product?view=card 200 in 856ms (next.js: 45ms, application-code: 811ms)
+Received slug in API route: levis-511-jeans
+Fetching product with slug: levis-511-jeans
+ GET /api/product/slug/levis-511-jeans 200 in 1644ms (next.js: 742ms, application-code: 901ms)
+Rendering ProductDetailView with product: {
+  id: 'db9e0c96-d5d4-43c2-ab1c-e23edcd185bd',
+  name: 'Levis 511 Slim Jeans',
+  description: 'Slim fit denim jeans',
+  brand: 'Levis',
+  slug: 'levis-511-jeans',
+  isActive: true,
+  categoryId: '16c1e2f7-d87a-40e8-bd6d-74c6d3c511cf',
+  createdAt: '2026-04-24T11:26:39.001Z',
+  updatedAt: '2026-04-24T11:26:39.001Z',
+  variants: [
+    {
+      id: '837e4b7a-3681-4166-8312-6ccf4bd99333',
+      name: '34',
+      sku: 'LEVIS-34',
+      price: 2999,
+      stock: 15,
+      productId: 'db9e0c96-d5d4-43c2-ab1c-e23edcd185bd'
+    },
+    {
+      id: 'f38e2e76-15f3-4856-b142-bbde7c2e96c1',
+      name: '32',
+      sku: 'LEVIS-32',
+      price: 2999,
+      stock: 20,
+      productId: 'db9e0c96-d5d4-43c2-ab1c-e23edcd185bd'
+    }
+  ],
+  images: [
+    {
+      id: 'ffb1d295-7bb1-410f-8d1a-cb2d9b7abda0',
+      url: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb',
+      altText: 'Levis 511 Slim Jeans',
+      isPrimary: true,
+      sortOrder: 0,
+      productId: 'db9e0c96-d5d4-43c2-ab1c-e23edcd185bd'
+    }
+  ],
+  reviews: [],
+  category: {
+    id: '16c1e2f7-d87a-40e8-bd6d-74c6d3c511cf',
+    name: 'Men Clothing',
+    slug: 'men-clothing'
+  }
+}
+ GET /products/levis-511-jeans 200 in 2.9s (next.js: 944ms, application-code: 1984ms)
+ GET /api/auth/session 200 in 211ms (next.js: 182ms, application-code: 29ms)
+ GET /api/auth/session 200 in 42ms (next.js: 4ms, application-code: 38ms)
+ GET / 200 in 2.6s (next.js: 47ms, application-code: 2.5s)
+ GET /api/auth/session 200 in 83ms (next.js: 28ms, application-code: 54ms)
+ GET /api/auth/session 200 in 21ms (next.js: 5ms, application-code: 16ms)
+ GET /api/product/random 200 in 641ms (next.js: 56ms, application-code: 585ms)
+ GET /api/product?view=card 200 in 620ms (next.js: 6ms, application-code: 614ms)
+✓ Compiled in 543ms
+✓ Compiled in 17ms
+ GET / 500 in 2.5s (next.js: 2.2s, application-code: 262ms)
+ GET / 200 in 390ms (next.js: 76ms, application-code: 314ms)
+ GET / 200 in 244ms (next.js: 6ms, application-code: 238ms)
+ GET / 200 in 301ms (next.js: 8ms, application-code: 293ms)
+ GET / 200 in 302ms (next.js: 50ms, application-code: 252ms)
+ GET / 200 in 302ms (next.js: 85ms, application-code: 217ms)
+ GET / 200 in 188ms (next.js: 7ms, application-code: 181ms)
+ GET / 200 in 351ms (next.js: 7ms, application-code: 344ms)
+ GET / 200 in 354ms (next.js: 51ms, application-code: 303ms)
+ GET / 200 in 227ms (next.js: 56ms, application-code: 171ms)
+ GET / 200 in 235ms (next.js: 9ms, application-code: 226ms)
+ GET / 200 in 236ms (next.js: 93ms, application-code: 143ms)
+ GET / 200 in 136ms (next.js: 7ms, application-code: 129ms)
+ GET / 200 in 59ms (next.js: 21ms, application-code: 38ms)
+ GET / 200 in 1350ms (next.js: 265ms, application-code: 1085ms)
+ GET /api/auth/session 200 in 300ms (next.js: 262ms, application-code: 38ms)
+ GET /api/auth/session 200 in 27ms (next.js: 4ms, application-code: 23ms)
+ GET /api/product?view=card 200 in 1633ms (next.js: 132ms, application-code: 1501ms)
+ GET /api/product/random 200 in 1964ms (next.js: 67ms, application-code: 1897ms)
+[?25h

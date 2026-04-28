@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { memo } from "react";
 import { Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,10 +15,40 @@ import { useToast } from "@/components/ui/toast-context";
 
 
 type ProductCardProps = {
-  product: ProductItem;
+  product: Pick<ProductItem, "slug" | "name"> &
+    Partial<Omit<ProductItem, "images" | "price">> & {
+    price?: string | number;
+    images?: Array<string | { url?: string | null; altText?: string | null }>;
+  };
+  priority?: boolean;
 };
 
-export default function ProductCard({ product }: ProductCardProps) {
+function getImageUrl(product: ProductCardProps["product"]): string {
+  const img = product.images?.[0];
+
+  if (!img) return "/placeholder.png";
+  if (typeof img === "string") return img;
+  if (typeof img === "object" && typeof img.url === "string") return img.url;
+
+  return "/placeholder.png";
+}
+
+function getImageAlt(product: ProductCardProps["product"]): string {
+  const img = product.images?.[0];
+
+  if (!img) return product.name;
+  if (typeof img === "string") return product.name;
+  if (typeof img === "object" && typeof img.altText === "string" && img.altText) return img.altText;
+
+  return product.name;
+}
+
+function formatPrice(price: ProductCardProps["product"]["price"]) {
+  if (typeof price === "number") return `₹${price}`;
+  return price;
+}
+
+function ProductCard({ product, priority = false }: ProductCardProps) {
 
 
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -35,21 +66,6 @@ export default function ProductCard({ product }: ProductCardProps) {
       );
     }
   };
-
-  function getImageUrl(product: ProductItem): string {
-    const img = product.images?.[0];
-    if (!img) return "/placeholder.png";
-    if (typeof img === "string") return img;
-    if (typeof img === "object" && "url" in img && typeof (img as any).url === "string") return (img as any).url;
-    return "/placeholder.png";
-  }
-  function getImageAlt(product: ProductItem): string {
-    const img = product.images?.[0];
-    if (!img) return product.name;
-    if (typeof img === "string") return product.name;
-    if (typeof img === "object" && "altText" in img && typeof (img as any).altText === "string" && (img as any).altText) return (img as any).altText;
-    return product.name;
-  }
 
   return (
     <Card
@@ -77,6 +93,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             alt={getImageAlt(product)}
             fill
             sizes="(max-width: 768px) 100vw, 25vw"
+            priority={priority}
             className="product-image"
           />
         </div>
@@ -86,7 +103,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             <p>{product.description}</p>
           </div>
           <div className="product-meta">
-            <strong>{product.price}</strong>
+            <strong>{formatPrice(product.price)}</strong>
             <CtaButton asChild size="sm">
               <span>View Details</span>
             </CtaButton>
@@ -96,3 +113,5 @@ export default function ProductCard({ product }: ProductCardProps) {
     </Card>
   );
 }
+
+export default memo(ProductCard);
