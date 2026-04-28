@@ -1,33 +1,64 @@
 "use client";
 
 import ProductCard from "@/components/home/product-card";
+import { ProductItem } from "@/components/home/home-data";
 import { SectionHeading } from "@/components/home/section-heading";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import axios from "@/lib/axios";
 import { useEffect, useState } from "react";
 
+function ProductCardSkeleton() {
+  return (
+    <Card className="product-card product-card-skeleton py-0 shadow-none">
+      <div className="product-card-topbar">
+        <Skeleton className="product-skeleton-pill" />
+        <Skeleton className="product-skeleton-icon" />
+      </div>
+      <Skeleton className="product-skeleton-image" />
+      <CardContent className="product-copy px-5 pb-5">
+        <div className="product-skeleton-copy">
+          <Skeleton className="product-skeleton-title" />
+          <Skeleton className="product-skeleton-text" />
+          <Skeleton className="product-skeleton-text short" />
+        </div>
+        <div className="product-meta">
+          <Skeleton className="product-skeleton-price" />
+          <Skeleton className="product-skeleton-button" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function ProductsSection() {
-  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let ignore = false;
+
     const fetchFeaturedProducts = async () => {
       try {
         const response = await axios.get("/product");
-        console.log("API response:", response);
-        if (response?.data?.success) {
+
+        if (!ignore && response?.data?.success) {
           setFeaturedProducts(response.data.data || []);
         }
       } catch (err) {
         console.error("Error fetching products:", err);
-        setError("Failed to load products");
+        if (!ignore) setError("Failed to load products");
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     };
 
-    fetchFeaturedProducts();
+    void fetchFeaturedProducts();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   return (
@@ -39,7 +70,13 @@ export function ProductsSection() {
         split
       />
 
-      {loading && <p>Loading products...</p>}
+      {loading && (
+        <div className="product-grid" aria-busy="true" aria-label="Loading featured products">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <ProductCardSkeleton key={index} />
+          ))}
+        </div>
+      )}
 
       {error && <p className="text-red-500">{error}</p>}
 

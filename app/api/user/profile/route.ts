@@ -5,6 +5,10 @@ import {
   updateProfileController,
 } from "@/controllers/user.controller";
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Something went wrong";
+}
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -16,8 +20,8 @@ export async function GET() {
     const user = await getProfileController(session.user.id);
 
     return Response.json(user);
-  } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return Response.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -37,7 +41,7 @@ export async function PATCH(req: Request) {
       body
     );
     return Response.json(updatedUser);
-  } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return Response.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

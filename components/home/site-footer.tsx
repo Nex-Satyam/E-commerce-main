@@ -1,19 +1,111 @@
-import Link from "next/link";
-import { ArrowUpRight, Clock3, Mail, MapPin, Phone, Sparkles } from "lucide-react";
+"use client";
 
-import { footerLinks, footerSections, socialLinks } from "@/components/home/home-data";
+import Link from "next/link";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  ArrowUpRight,
+  BadgeCheck,
+  Clock3,
+  Headphones,
+  Mail,
+  MapPin,
+  MessageCircle,
+  PackageCheck,
+  Phone,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Truck,
+} from "lucide-react";
+
+import {
+  footerLinks,
+  footerSections,
+  socialLinks,
+} from "@/components/home/home-data";
 import { CtaButton } from "@/components/home/cta-button";
 import { Input } from "@/components/ui/input";
 
+const newsletterSchema = z.object({
+  email: z.string().trim().min(1, "Email is required.").email("Enter a valid email address."),
+});
+
+type NewsletterValues = z.infer<typeof newsletterSchema>;
+
 function isInternalLink(href: string) {
-  return href.startsWith("/") && !href.startsWith("mailto:") && !href.startsWith("tel:");
+  return (
+    href.startsWith("/") && !href.startsWith("mailto:") && !href.startsWith("tel:")
+  );
 }
 
+const serviceItems = [
+  {
+    icon: Truck,
+    title: "Fast dispatch",
+    copy: "Priority packing for ready-to-ship edits.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Secure checkout",
+    copy: "Protected payments and private order handling.",
+  },
+  {
+    icon: PackageCheck,
+    title: "Quality checked",
+    copy: "Every piece is inspected before it leaves us.",
+  },
+  {
+    icon: Headphones,
+    title: "Client care",
+    copy: "Sizing, delivery, and styling help when needed.",
+  },
+];
+
+const tickerItems = [
+  "New silhouettes every week",
+  "Monochrome essentials",
+  "Tailored in limited runs",
+  "Client care from New Delhi",
+  "Secure checkout",
+  "7 day return support",
+];
+
 export function SiteFooter() {
+  const tickerLoop = [...tickerItems, ...tickerItems];
+  const [subscribedEmail, setSubscribedEmail] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<NewsletterValues>({
+    resolver: zodResolver(newsletterSchema),
+    mode: "onBlur",
+    defaultValues: {
+      email: "",
+    },
+  });
+
+  const handleNewsletterSubmit = (values: NewsletterValues) => {
+    setSubscribedEmail(values.email);
+    reset();
+  };
+
   return (
     <footer className="site-footer" id="footer">
-      <div className="footer-ambient footer-ambient-one" aria-hidden="true" />
-      <div className="footer-ambient footer-ambient-two" aria-hidden="true" />
+      <div className="footer-marquee" aria-label="Atelier highlights">
+        <div className="footer-marquee-track">
+          {tickerLoop.map((item, index) => (
+            <span key={`${item}-${index}`}>
+              <Sparkles className="size-4" />
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
 
       <div className="footer-hero-row">
         <div className="footer-brand-panel">
@@ -23,76 +115,99 @@ export function SiteFooter() {
             </div>
             <div className="footer-brand-copy">
               <p className="eyebrow">Offwhite Atelier</p>
-              <h2>Quiet essentials for a cleaner wardrobe.</h2>
+              <h2>Quiet essentials, shaped for modern wardrobes.</h2>
               <p className="footer-brand-description">
-                Designed in New Delhi with a softer palette, refined tailoring,
-                and everyday silhouettes that feel elevated without excess.
+                A monochrome-first studio for refined everyday dressing,
+                considered fits, and pieces that stay useful beyond the season.
               </p>
             </div>
           </div>
 
-          <div className="footer-feature-pills">
-            <span className="footer-feature-pill">
-              <Sparkles className="size-4" /> Styling-led edits every week
-            </span>
-            <span className="footer-feature-pill">
-              <MapPin className="size-4" /> Crafted for city dressing in India
-            </span>
-            <span className="footer-feature-pill">
-              <Clock3 className="size-4" /> Fast response from client care
-            </span>
-          </div>
+          <div className="footer-service-grid">
+            {serviceItems.map((item) => {
+              const Icon = item.icon;
 
-          <div className="footer-brand-stats">
-            <div className="footer-stat-card">
-              <strong>24h</strong>
-              <span>Average client-care response</span>
-            </div>
-            <div className="footer-stat-card">
-              <strong>14 days</strong>
-              <span>Easy return support window</span>
-            </div>
-            <div className="footer-stat-card">
-              <strong>Curated</strong>
-              <span>Seasonal edits in limited runs</span>
-            </div>
+              return (
+                <div key={item.title} className="footer-service-card">
+                  <span className="footer-service-icon">
+                    <Icon className="size-4" />
+                  </span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{item.copy}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         <div className="footer-highlight-card">
-          <p className="eyebrow">Client Care</p>
-          <h3>Stay close to new drops and private edits.</h3>
+          <div className="footer-card-kicker">
+            <BadgeCheck className="size-4" />
+            Private client desk
+          </div>
+          <h3>Get early access, styling notes, and delivery support.</h3>
           <p>
-            Reach our team for sizing, delivery guidance, appointment requests,
-            and seasonal curation recommendations.
+            Join the atelier list for new drop alerts, size guidance, occasion
+            edits, and quieter wardrobe ideas.
           </p>
-          <a className="footer-mail-link footer-mail-link-hero" href="mailto:hello@offwhiteatelier.com">
-            <Mail className="size-4" /> hello@offwhiteatelier.com
-          </a>
-          <a className="footer-mail-link footer-mail-link-hero" href="tel:+919876543210">
-            <Phone className="size-4" /> +91 98765 43210
-          </a>
-          <div className="footer-highlight-meta">
-            <span>Mon to Sat, 10:00 AM to 8:00 PM</span>
-            <span>New Delhi studio appointments available</span>
-          </div>
 
-          <div className="footer-highlight-badges">
-            <span className="footer-highlight-badge">Private styling</span>
-            <span className="footer-highlight-badge">Delivery support</span>
-            <span className="footer-highlight-badge">Occasion edits</span>
-          </div>
-
-          <form className="footer-subscribe-form">
-            <Input
-              type="email"
-              placeholder="Enter your email for atelier notes"
-              className="footer-subscribe-input"
-            />
+          <form
+            className="footer-subscribe-form"
+            onSubmit={handleSubmit(handleNewsletterSubmit)}
+            noValidate
+          >
+            <div className="footer-input-shell">
+              <Mail className="size-4" />
+              <Input
+                {...register("email")}
+                type="email"
+                placeholder="Email address"
+                className="footer-subscribe-input"
+                aria-invalid={Boolean(errors.email)}
+              />
+            </div>
             <CtaButton type="submit" className="footer-subscribe-button">
-              Subscribe
+              <span>
+                Join <Send className="size-4" />
+              </span>
             </CtaButton>
+            {errors.email && (
+              <small className="form-error footer-form-message">
+                {errors.email.message}
+              </small>
+            )}
+            {subscribedEmail && !errors.email && (
+              <small className="form-success footer-form-message">
+                Added {subscribedEmail} to the atelier list.
+              </small>
+            )}
           </form>
+
+          <div className="footer-contact-row">
+            <a
+              className="footer-contact-pill"
+              href="mailto:hello@offwhiteatelier.com"
+            >
+              <Mail className="size-4" /> Email us
+            </a>
+            <a className="footer-contact-pill" href="tel:+919876543210">
+              <Phone className="size-4" /> Call studio
+            </a>
+            <a className="footer-contact-pill" href="#footer">
+              <MessageCircle className="size-4" /> Styling help
+            </a>
+          </div>
+
+          <div className="footer-highlight-meta">
+            <span>
+              <Clock3 className="size-4" /> Mon to Sat, 10:00 AM to 8:00 PM
+            </span>
+            <span>
+              <MapPin className="size-4" /> New Delhi studio appointments
+            </span>
+          </div>
         </div>
       </div>
 
@@ -117,11 +232,11 @@ export function SiteFooter() {
         ))}
 
         <div className="footer-link-column footer-link-column-wide">
-          <p className="footer-link-column-title">From The Atelier</p>
+          <p className="footer-link-column-title">Atelier Notes</p>
           <div className="footer-note-card">
             <p>
-              Minimal dressing notes, early access product alerts, and select
-              editorial drops curated for repeat wear.
+              Minimal dressing notes, product care reminders, and early access
+              links curated for repeat wear.
             </p>
             <div className="footer-minimal-links">
               {footerLinks.slice(0, 3).map((link) =>
@@ -143,7 +258,7 @@ export function SiteFooter() {
               </div>
               <div className="footer-note-pill">
                 <span>Shipping</span>
-                <strong>Complimentary over ₹120</strong>
+                <strong>Complimentary over Rs. 120</strong>
               </div>
             </div>
           </div>
@@ -152,18 +267,20 @@ export function SiteFooter() {
 
       <div className="footer-minimal-bottom">
         <div className="footer-meta-inline">
-          <p>© 2026 ASR Offwhite Atelier</p>
+          <p>Copyright 2026 ASR Offwhite Atelier</p>
           <span>New Delhi, India</span>
-          <span>Mon to Sat, 10:00 AM to 8:00 PM</span>
+          <span>Designed for quiet daily wear</span>
         </div>
 
         <div className="footer-actions-inline">
-          <a className="footer-mail-link" href="mailto:hello@offwhiteatelier.com">
-            <Mail className="size-4" /> hello@offwhiteatelier.com
-          </a>
           <div className="footer-inline-links">
             {socialLinks.map((link) => (
-              <a key={link.label} href={link.href} target="_blank" rel="noreferrer">
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noreferrer"
+              >
                 {link.label}
               </a>
             ))}

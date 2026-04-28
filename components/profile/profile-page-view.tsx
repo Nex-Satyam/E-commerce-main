@@ -1,15 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useEffect } from "react";
-import { ArrowLeft, BadgeCheck, MapPin, PencilLine, Save, ShieldCheck, Sparkles } from "lucide-react";
+import { useCallback, useMemo, useState, useEffect, type CSSProperties } from "react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Bell,
+  CalendarDays,
+  CheckCircle2,
+  Heart,
+  Loader2,
+  Mail,
+  MapPin,
+  PackageCheck,
+  PencilLine,
+  Phone,
+  Save,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Truck,
+  UserRound,
+} from "lucide-react";
 import axios from "axios";
 import { useSession } from "next-auth/react";
-import { useAuth, type UserProfile } from "@/components/auth/auth-provider";
+import { type UserProfile } from "@/components/auth/auth-provider";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast-context";
+
+const profileSchema = z.object({
+  name: z.string().trim().min(2, "Enter your full name."),
+  phone: z
+    .string()
+    .trim()
+    .refine(
+      (value) =>
+        !value ||
+        /^[6-9]\d{9}$|^\+91[6-9]\d{9}$/.test(value.replace(/\s/g, "")),
+      "Enter a valid Indian phone number.",
+    ),
+  address: z.string().trim().min(5, "Enter a complete address."),
+});
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
 
 function getInitials(name: string) {
   return name
@@ -22,28 +61,123 @@ function getInitials(name: string) {
 
 export function ProfilePageView() {
   const { data: session, status } = useSession();
+  const { showToast } = useToast();
   const user = session?.user;
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [formState, setFormState] = useState<UserProfile | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const initials = useMemo(() => getInitials(user?.name ?? profileData?.name ?? "ASR"), [user?.name, profileData?.name]);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    mode: "onBlur",
+    defaultValues: {
+      name: "",
+      phone: "",
+      address: "",
+    },
+  });
+
+  const resetProfileForm = useCallback((data: UserProfile) => {
+    reset({
+      name: data.name ?? "",
+      phone: data.phone ?? "",
+      address: data.address ?? "",
+    });
+  }, [reset]);
 
   useEffect(() => {
     async function fetchProfile() {
       try {
         const res = await axios.get("/api/user/profile");
         setProfileData(res.data);
-        setFormState(res.data);
+        resetProfileForm(res.data);
       } catch {
         setProfileData(null);
-        setFormState(null);
       }
     }
     if (user) fetchProfile();
-  }, [user]);
+  }, [user, resetProfileForm]);
+
+  const handleProfileSave = async (values: ProfileFormValues) => {
+    try {
+      await axios.patch("/api/user/profile", {
+        ...values,
+        phone: values.phone.replace(/\s/g, ""),
+      });
+
+      const res = await axios.get("/api/user/profile");
+      setProfileData(res.data);
+      resetProfileForm(res.data);
+      setIsEditing(false);
+      setLastSavedAt(
+        new Intl.DateTimeFormat("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(new Date()),
+      );
+      showToast("Profile changes saved successfully.", "success");
+    } catch (err: unknown) {
+      console.error(err);
+      showToast("Unable to save profile changes.", "error");
+      setError("root", {
+        message: "Failed to update profile. Please try again.",
+      });
+    }
+  };
+
+  const completedFields = profileData
+    ? [profileData.name, profileData.email, profileData.phone, profileData.address].filter(Boolean).length
+    : 0;
+  const completion = Math.round((completedFields / 4) * 100);
+
+  const profileHighlights = [
+    {
+      label: "Saved profile",
+      value: `${completion}%`,
+      copy: "Account completion",
+      icon: BadgeCheck,
+    },
+    {
+      label: "Member since",
+      value: profileData?.memberSince || "-",
+      copy: "Loyal customer",
+      icon: CalendarDays,
+    },
+    {
+      label: "Checkout ready",
+      value: profileData?.address ? "Ready" : "Pending",
+      copy: "Delivery details",
+      icon: Truck,
+    },
+  ];
+
+  const quickActions = [
+    { label: "Orders", href: "/orders", icon: ShoppingBag },
+    { label: "Wishlist", href: "/wishlist", icon: Heart },
+    { label: "Cart", href: "/cart", icon: PackageCheck },
+  ];
+
+  const activityItems = [
+    "Profile checked for faster checkout",
+    "Delivery details synced with your account",
+    "Secure account session is active",
+  ];
 
   if (status === "loading") {
-    return <div>Loading...</div>;
+    return (
+      <section className="profile-page">
+        <div className="profile-loading-state">
+          <Loader2 className="size-5 animate-spin" />
+          Loading account...
+        </div>
+      </section>
+    );
   }
   if (!user) {
     return (
@@ -76,73 +210,115 @@ export function ProfilePageView() {
     );
   }
 
-  if (!profileData || !formState) {
-    return <div>Loading profile...</div>;
+  if (!profileData) {
+    return (
+      <section className="profile-page">
+        <div className="profile-loading-state">
+          <Loader2 className="size-5 animate-spin" />
+          Loading profile...
+        </div>
+      </section>
+    );
   }
 
   return (
-    <section className="profile-page bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9] min-h-[90vh] py-8">
-      <div className="profile-breadcrumb flex items-center gap-2 mb-6">
-        <Link href="/" className="wishlist-back-link text-muted-foreground hover:text-foreground flex items-center gap-1">
+    <section className="profile-page profile-modern-page">
+      <div className="profile-breadcrumb profile-animate-in">
+        <Link href="/" className="wishlist-back-link">
           <ArrowLeft className="size-4" /> Back to home
         </Link>
-        <span className="text-xl font-light text-gray-400">/</span>
-        <span className="font-semibold text-gray-700">My profile</span>
+        <span>/</span>
+        <strong>My profile</strong>
       </div>
 
-      <div className="profile-layout grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-        <Card className="profile-hero-card shadow-lg rounded-2xl border-0 bg-white/90 flex flex-col items-center py-10 px-8">
-          <div className="relative mb-4">
-            <div className="profile-avatar w-24 h-24 rounded-full bg-gradient-to-br from-[#e0e7ff] to-[#f1f5f9] flex items-center justify-center text-4xl font-bold text-gray-700 border-4 border-white shadow-lg ring-4 ring-indigo-200">
-              {initials || "AS"}
+      <section className="profile-dashboard-hero profile-animate-in">
+        <div className="profile-hero-identity">
+          <div className="profile-avatar-wrap">
+            <div className="profile-avatar">
+              {initials || "ASR"}
             </div>
-            <span className="absolute bottom-0 right-0 bg-indigo-500 text-white rounded-full px-2 py-1 text-xs font-semibold shadow">User</span>
-          </div>
-          <div className="profile-hero-copy text-center">
-            <p className="eyebrow uppercase tracking-widest text-xs text-indigo-400 font-semibold mb-1">Account Details</p>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-800 mb-2">{profileData.name}</h1>
-            <p className="text-gray-500 mb-4">Review your saved contact details, delivery information, and account overview from one place.</p>
-          </div>
-          <div className="profile-chip-row flex gap-2 justify-center mb-4">
-            <span className="profile-chip flex items-center gap-1 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full font-medium shadow">
-              <BadgeCheck className="size-4" /> Verified customer
-            </span>
-            <span className="profile-chip is-light flex items-center gap-1 bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-medium">
-              <Sparkles className="size-4" /> Member since {profileData.memberSince}
+            <span className="profile-avatar-status">
+              <CheckCircle2 className="size-3" />
+              Active
             </span>
           </div>
-          <div className="profile-stat-grid grid grid-cols-1 gap-2 w-full mt-2">
-            <div className="profile-stat-card bg-indigo-50 rounded-lg px-4 py-3 flex flex-col items-start">
-              <span className="text-xs text-gray-400">Email</span>
-              <strong className="text-base text-gray-700 break-all">{profileData.email}</strong>
-            </div>
-            <div className="profile-stat-card bg-indigo-50 rounded-lg px-4 py-3 flex flex-col items-start">
-              <span className="text-xs text-gray-400">Phone</span>
-              <strong className="text-base text-gray-700">{profileData.phone}</strong>
-            </div>
-            <div className="profile-stat-card bg-indigo-50 rounded-lg px-4 py-3 flex flex-col items-start">
-              <span className="text-xs text-gray-400">Location</span>
-              <strong className="text-base text-gray-700">{profileData.city}</strong>
-            </div>
-          </div>
-        </Card>
 
-        <Card className="profile-details-card shadow-lg rounded-2xl border-0 bg-white/90">
-          <CardContent className="profile-details-content p-8">
-            <div className="profile-section-head flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-2">
+          <div className="profile-hero-copy">
+            <p className="eyebrow">Account Details</p>
+            <h1>{profileData.name}</h1>
+            <p>
+              Manage your contact details, delivery preferences, saved shopping
+              shortcuts, and account readiness from one clean dashboard.
+            </p>
+          </div>
+
+          <div className="profile-chip-row">
+            <span className="profile-chip">
+              <BadgeCheck className="size-4" />
+              Verified customer
+            </span>
+            <span className="profile-chip is-light">
+              <Sparkles className="size-4" />
+              Member since {profileData.memberSince}
+            </span>
+          </div>
+        </div>
+
+        <div className="profile-completion-card">
+          <div>
+            <span>Profile strength</span>
+            <strong>{completion}% complete</strong>
+          </div>
+          <div
+            className="profile-progress-ring"
+            style={{ "--profile-progress": `${completion}%` } as CSSProperties}
+            aria-label={`Profile completion ${completion}%`}
+          >
+            <span>{completion}</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="profile-stat-grid profile-animate-in">
+        {profileHighlights.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <div key={item.label} className="profile-stat-card">
+              <span className="profile-stat-icon">
+                <Icon className="size-4" />
+              </span>
               <div>
-                <p className="eyebrow uppercase tracking-widest text-xs text-indigo-400 font-semibold mb-1">Personal Information</p>
-                <h2 className="text-xl font-bold text-gray-800">Your saved details</h2>
-                <p className="text-gray-500">Edit your customer information and keep checkout details up to date.</p>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.copy}</small>
               </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="profile-layout profile-animate-in">
+        <Card className="profile-details-card py-0 shadow-none">
+          <CardContent className="profile-details-content">
+            <div className="profile-section-head">
+              <div>
+                <p className="eyebrow">Personal Information</p>
+                <h2>Your saved details</h2>
+                <p>
+                  Edit customer details used for checkout, delivery updates,
+                  and support verification.
+                </p>
+              </div>
+
               {isEditing ? (
-                <div className="profile-head-actions flex gap-2 mt-4 md:mt-0">
+                <div className="profile-head-actions">
                   <Button
                     type="button"
                     variant="outline"
-                    className="rounded-full border-gray-300 hover:bg-gray-100"
+                    className="profile-secondary-action"
                     onClick={() => {
-                      setFormState(profileData);
+                      resetProfileForm(profileData);
                       setIsEditing(false);
                     }}
                   >
@@ -150,117 +326,177 @@ export function ProfilePageView() {
                   </Button>
                   <CtaButton
                     type="button"
-                    className="profile-save-button rounded-full bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 font-semibold shadow"
-                    onClick={async () => {
-                      try {
-                        await axios.patch("/api/user/profile", formState);
-                        const res = await axios.get("/api/user/profile");
-                        setProfileData(res.data);
-                        setFormState(res.data);
-                        setIsEditing(false);
-                      } catch (err) {
-                        alert("Failed to update profile. Please try again.");
-                      }
-                    }}
+                    className="profile-save-button"
+                    onClick={handleSubmit(handleProfileSave)}
+                    disabled={isSubmitting}
                   >
-                    <Save className="size-4 mr-2" /> Save changes
+                    {isSubmitting ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}
+                    {isSubmitting ? "Saving..." : "Save changes"}
                   </CtaButton>
                 </div>
               ) : (
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-full border-gray-300 hover:bg-gray-100"
+                  className="profile-secondary-action"
                   onClick={() => setIsEditing(true)}
                 >
-                  <PencilLine className="size-4 mr-2" /> Edit profile
+                  <PencilLine className="size-4" /> Edit profile
                 </Button>
               )}
             </div>
-            <form className="profile-form grid gap-6" onSubmit={(event) => event.preventDefault()}>
-              <div className="profile-two-col-grid grid grid-cols-1 md:grid-cols-2 gap-6">
-                <label className="profile-field flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-600">Full Name</span>
+
+            {lastSavedAt && (
+              <div className="profile-saved-banner">
+                <CheckCircle2 className="size-4" />
+                Saved at {lastSavedAt}. Your checkout details are up to date.
+              </div>
+            )}
+
+            <form className="profile-form" onSubmit={handleSubmit(handleProfileSave)} noValidate>
+              <div className="profile-two-col-grid">
+                <label className="profile-field">
+                  <span>
+                    <UserRound className="size-4" />
+                    Full Name
+                  </span>
                   <Input
-                    value={formState.name ?? ""}
-                    onChange={(event) =>
-                      setFormState((currentState) =>
-                        currentState
-                          ? { ...currentState, name: event.target.value }
-                          : currentState,
-                      )
-                    }
+                    {...register("name")}
                     disabled={!isEditing}
+                    aria-invalid={Boolean(errors.name)}
                   />
+                  {errors.name && (
+                    <small className="form-error">{errors.name.message}</small>
+                  )}
                 </label>
-                <label className="profile-field flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-600">Email Address</span>
-                  <Input value={formState.email ?? ""} disabled />
+                <label className="profile-field">
+                  <span>
+                    <Mail className="size-4" />
+                    Email Address
+                  </span>
+                  <Input value={profileData.email ?? ""} disabled />
                 </label>
               </div>
-              <div className="profile-two-col-grid grid grid-cols-1 md:grid-cols-2 gap-6">
-                <label className="profile-field flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-600">Phone Number</span>
+              <div className="profile-two-col-grid">
+                <label className="profile-field">
+                  <span>
+                    <Phone className="size-4" />
+                    Phone Number
+                  </span>
                   <Input
-                    value={formState.phone ?? ""}
-                    onChange={(event) =>
-                      setFormState((currentState) =>
-                        currentState
-                          ? { ...currentState, phone: event.target.value }
-                          : currentState,
-                      )
-                    }
+                    {...register("phone")}
                     disabled={!isEditing}
+                    aria-invalid={Boolean(errors.phone)}
                   />
+                  {errors.phone && (
+                    <small className="form-error">{errors.phone.message}</small>
+                  )}
                 </label>
-                <label className="profile-field flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-600">City</span>
+                <label className="profile-field">
+                  <span>
+                    <Truck className="size-4" />
+                    Address
+                  </span>
                   <Input
-                    value={formState.city ?? ""}
-                    onChange={(event) =>
-                      setFormState((currentState) =>
-                        currentState
-                          ? { ...currentState, city: event.target.value }
-                          : currentState,
-                      )
-                    }
+                    {...register("address")}
                     disabled={!isEditing}
+                    aria-invalid={Boolean(errors.address)}
                   />
+                  {errors.address && (
+                    <small className="form-error">{errors.address.message}</small>
+                  )}
                 </label>
               </div>
-              <label className="profile-field flex flex-col gap-1">
-                <span className="text-sm font-medium text-gray-600">Address</span>
-                <Input
-                  value={formState.address ?? ""}
-                  onChange={(event) =>
-                    setFormState((currentState) =>
-                      currentState
-                        ? { ...currentState, address: event.target.value }
-                        : currentState,
-                    )
-                  }
-                  disabled={!isEditing}
-                />
-              </label>
+              {errors.root?.message && (
+                <div className="checkout-error-box">{errors.root.message}</div>
+              )}
             </form>
-            <div className="profile-support-row grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-              <div className="profile-support-card flex items-center gap-3 bg-indigo-50 rounded-lg px-4 py-3">
-                <MapPin className="size-5 text-indigo-400" />
-                <div>
-                  <strong className="block text-gray-700">Primary delivery location</strong>
-                  <span className="text-gray-500">{profileData?.address}</span>
-                </div>
-              </div>
-              <div className="profile-support-card flex items-center gap-3 bg-gray-100 rounded-lg px-4 py-3">
-                <BadgeCheck className="size-5 text-green-500" />
-                <div>
-                  <strong className="block text-gray-700">Profile ready for checkout</strong>
-                  <span className="text-gray-500">Saved details will help you complete orders faster.</span>
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
+
+        <aside className="profile-side-stack">
+          <Card className="profile-side-card py-0 shadow-none">
+            <CardContent className="profile-side-content">
+              <div className="profile-mini-head">
+                <ShieldCheck className="size-5" />
+                <div>
+                  <strong>Account protection</strong>
+                  <span>Secure session and verified contact details.</span>
+                </div>
+              </div>
+              <div className="profile-security-list">
+                <span>
+                  <CheckCircle2 className="size-4" />
+                  Email linked to account
+                </span>
+                <span>
+                  <CheckCircle2 className="size-4" />
+                  Checkout profile validated
+                </span>
+                <span>
+                  <CheckCircle2 className="size-4" />
+                  Saved delivery preferences
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="profile-side-card py-0 shadow-none">
+            <CardContent className="profile-side-content">
+              <div className="profile-mini-head">
+                <Bell className="size-5" />
+                <div>
+                  <strong>Quick actions</strong>
+                  <span>Jump back into your shopping flow.</span>
+                </div>
+              </div>
+              <div className="profile-action-grid">
+                {quickActions.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <Link key={item.label} href={item.href} className="profile-action-tile">
+                      <Icon className="size-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="profile-side-card py-0 shadow-none">
+            <CardContent className="profile-side-content">
+              <div className="profile-mini-head">
+                <Sparkles className="size-5" />
+                <div>
+                  <strong>Recent activity</strong>
+                  <span>Small account updates that keep checkout smooth.</span>
+                </div>
+              </div>
+              <div className="profile-activity-list">
+                {activityItems.map((item, index) => (
+                  <span key={item}>
+                    <b>{index + 1}</b>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="profile-support-card">
+            <MapPin className="size-5" />
+            <div>
+              <strong>Primary delivery location</strong>
+              <span>{profileData.address}</span>
+            </div>
+          </div>
+        </aside>
       </div>
     </section>
   );

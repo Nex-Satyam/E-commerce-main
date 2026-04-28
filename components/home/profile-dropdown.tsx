@@ -2,27 +2,58 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { CircleUserRound, Heart, LogIn, LogOut, Package, Settings, ShieldCheck, UserRound } from "lucide-react";
-import { signOut } from "next-auth/react";
-import { useSession } from "next-auth/react";
+import {
+  BadgeCheck,
+  ChevronDown,
+  CircleUserRound,
+  Heart,
+  LogIn,
+  LogOut,
+  Package,
+  Settings,
+  ShoppingBag,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-type User = { role?: string; [key: string]: any };
-type Session = { user?: User; [key: string]: any };
+type HeaderSessionUser = {
+  name?: string | null;
+  email?: string | null;
+  role?: string;
+};
+
+function getInitials(name: string, email: string) {
+  const source = name || email.split("@")[0] || "ASR";
+
+  return source
+    .split(/[ ._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((segment) => segment.charAt(0).toUpperCase())
+    .join("");
+}
 
 export function ProfileDropdown() {
-  const sessionResult = useSession();
-  const { data: session, status } = (sessionResult || { data: null, status: "loading" }) as { data: Session | null; status: "authenticated" | "unauthenticated" | "loading" };
+  const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
   const closeTimeoutRef = useRef<number | null>(null);
+  const sessionUser = session?.user as HeaderSessionUser | undefined;
 
   let isLoggedIn = status === "authenticated";
-  let name = session?.user?.name || "";
-  let email = session?.user?.email || "";
-  let role = session?.user?.role || "";
-
+  let name = sessionUser?.name || "";
+  let email = sessionUser?.email || "";
+  let role = sessionUser?.role || "";
 
   try {
     const auth = useAuth();
@@ -37,46 +68,130 @@ export function ProfileDropdown() {
   if (status === "loading") return null;
 
   const clearCloseTimeout = () => {
-    if (closeTimeoutRef.current !== null) { window.clearTimeout(closeTimeoutRef.current); closeTimeoutRef.current = null; }
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
   };
-  const handleOpen = () => { clearCloseTimeout(); setOpen(true); };
-  const handleClose = () => { clearCloseTimeout(); closeTimeoutRef.current = window.setTimeout(() => setOpen(false), 120); };
+
+  const handleOpen = () => {
+    clearCloseTimeout();
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    clearCloseTimeout();
+    closeTimeoutRef.current = window.setTimeout(() => setOpen(false), 120);
+  };
+
   const closeMenu = () => setOpen(false);
+  const displayName = name || (role === "ADMIN" ? "Admin" : "Style Client");
+  const initials = getInitials(displayName, email);
+  const roleLabel = role === "ADMIN" ? "Admin access" : "Customer account";
+
+  const accountLinks = [
+    { href: "/profile", label: "My Profile", icon: UserRound, authOnly: true },
+    { href: "/orders", label: "Orders", icon: Package },
+    { href: "/wishlist", label: "Wishlist", icon: Heart },
+    { href: "/cart", label: "Shopping Bag", icon: ShoppingBag },
+  ];
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="profile-trigger profile-pill rounded-full border-(--border) bg-[rgba(255,250,242,0.72)] px-4 text-(--text) shadow-none" onMouseEnter={handleOpen} onMouseLeave={handleClose}>
-          <CircleUserRound className="size-4" /> Profile
+        <Button
+          variant="outline"
+          className="profile-trigger profile-pill profile-dropdown-trigger"
+          onMouseEnter={handleOpen}
+          onMouseLeave={handleClose}
+        >
+          <span className="profile-trigger-avatar">
+            {isLoggedIn ? initials || "AS" : <CircleUserRound className="size-4" />}
+          </span>
+          <span className="profile-trigger-copy">{isLoggedIn ? "Profile" : "Login"}</span>
+          <ChevronDown className="profile-trigger-chevron size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="rounded-2xl border border-(--border) bg-[rgba(255,250,242,0.98)] p-2 text-(--text) shadow-(--shadow)" onMouseEnter={handleOpen} onMouseLeave={handleClose}>
-        <DropdownMenuLabel className="text-(--muted-foreground) flex flex-col">
-          {isLoggedIn ? (<><span className="font-semibold">{name || (role === "ADMIN" ? "Admin" : "User")}</span>{email && <span className="text-xs opacity-80">{email}</span>}</>) : "My Account"}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          {isLoggedIn ? (
-            <DropdownMenuItem asChild>
-              <Link href="/profile" onClick={closeMenu}><UserRound className="size-4" />My Profile</Link>
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuItem asChild>
-            <Link href="/orders" onClick={closeMenu}><Package className="size-4" />Orders</Link>
+
+      <DropdownMenuContent
+        align="end"
+        sideOffset={12}
+        className="profile-dropdown-content"
+        onMouseEnter={handleOpen}
+        onMouseLeave={handleClose}
+      >
+        <div className="profile-menu-card">
+          <div className="profile-menu-identity">
+            <div className="profile-menu-avatar">
+              {isLoggedIn ? initials || "AS" : <CircleUserRound className="size-6" />}
+            </div>
+
+            <div className="profile-menu-copy">
+              <strong>{isLoggedIn ? displayName : "Your account"}</strong>
+              <span>{isLoggedIn ? email || roleLabel : "Login to manage orders and wishlist"}</span>
+            </div>
+          </div>
+
+          <div className="profile-menu-pill-row">
+            <span>
+              {isLoggedIn ? <BadgeCheck className="size-3" /> : <Sparkles className="size-3" />}
+              {roleLabel}
+            </span>
+          </div>
+        </div>
+
+        <DropdownMenuSeparator className="profile-menu-separator" />
+
+        <DropdownMenuGroup className="profile-menu-list">
+          {accountLinks
+            .filter((item) => !item.authOnly || isLoggedIn)
+            .map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <DropdownMenuItem key={item.href} asChild className="profile-menu-item">
+                  <Link href={item.href} onClick={closeMenu}>
+                    <span className="profile-menu-item-icon">
+                      <Icon className="size-4" />
+                    </span>
+                    <span>{item.label}</span>
+                    <ChevronDown className="profile-menu-item-arrow size-4" />
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+
+          <DropdownMenuItem className="profile-menu-item">
+            <span className="profile-menu-item-icon">
+              <Settings className="size-4" />
+            </span>
+            <span>Settings</span>
+            <span className="profile-menu-soon">Soon</span>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild><Link href="/wishlist" onClick={closeMenu}><Heart className="size-4" />Wishlist</Link></DropdownMenuItem>
-          <DropdownMenuItem><Settings className="size-4" />Settings</DropdownMenuItem>
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
+
         {isLoggedIn ? (
-          <DropdownMenuItem variant="destructive" onSelect={async () => { setOpen(false); await signOut({ callbackUrl: "/login" }); }}>
-            <LogOut className="size-4" />Logout
+          <DropdownMenuItem
+            variant="destructive"
+            className="profile-menu-item profile-menu-logout"
+            onSelect={async () => {
+              setOpen(false);
+              await signOut({ callbackUrl: "/login" });
+            }}
+          >
+            <span className="profile-menu-item-icon">
+              <LogOut className="size-4" />
+            </span>
+            Logout
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem asChild>
+          <DropdownMenuItem asChild className="profile-menu-item profile-menu-login">
             <Link href="/login" onClick={closeMenu}>
-              <LogIn className="size-4" />Login
-              {isLoggedIn && (role === "ADMIN" ? <ShieldCheck className="ml-auto size-4" /> : <UserRound className="ml-auto size-4" />)}
+              <span className="profile-menu-item-icon">
+                <LogIn className="size-4" />
+              </span>
+              Login / Signup
+              <ChevronDown className="profile-menu-item-arrow size-4" />
             </Link>
           </DropdownMenuItem>
         )}

@@ -2,25 +2,32 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BadgeCheck,
+  CheckCircle2,
+  ChevronRight,
   Clock3,
   CreditCard,
   Gift,
+  IndianRupee,
   Loader2,
+  LockKeyhole,
   MapPin,
   PackageCheck,
+  RotateCcw,
   ShieldCheck,
-  Sparkles,
+  Tag,
   Truck,
 } from "lucide-react";
 
 import axios from "@/lib/axios";
 import { CtaButton } from "@/components/home/cta-button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useCart } from "@/components/cart/cart-provider";
 import { AddressForm } from "./address-form";
 import { PaymentForm } from "./payment-form";
 
@@ -31,30 +38,67 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+type DeliveryMethod = "standard" | "express";
+type PaymentMethod = "card" | "upi" | "cod";
+
+type CheckoutAddress = {
+  id: string;
+  fullName: string;
+  phone?: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state?: string;
+  pincode: string;
+  label?: string;
+  isDefault?: boolean;
+};
+
+type CartApiItem = {
+  id: string;
+  quantity: number;
+  variant: {
+    name?: string;
+    sku?: string;
+    price: number;
+    product: {
+      id: string;
+      name: string;
+      slug?: string;
+      images?: { url?: string }[];
+    };
+  };
+};
+
+type OrderDetails = {
+  id?: string;
+  totalAmount?: number;
+  status?: string;
+};
+
 export function CheckoutPageView() {
   const router = useRouter();
+  const { refreshCart } = useCart();
 
   const [step, setStep] = useState(0);
-  const [deliveryMethod, setDeliveryMethod] = useState<"standard" | "express">(
-    "standard"
-  );
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "upi" | "cod">(
-    "card"
-  );
+  const [deliveryMethod, setDeliveryMethod] =
+    useState<DeliveryMethod>("standard");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [isPaymentValid, setIsPaymentValid] = useState(false);
   const [deliverySlot, setDeliverySlot] = useState("Morning");
   const [giftWrap, setGiftWrap] = useState(true);
 
-  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [cartItems, setCartItems] = useState<CartApiItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<CheckoutAddress[]>([]);
   const [addressId, setAddressId] = useState<string | null>(null);
   const [addressLoading, setAddressLoading] = useState(true);
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [orderDetails, setOrderDetails] = useState<any>(null);
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchAddresses = async (selectId?: string, moveNext = false) => {
@@ -69,14 +113,15 @@ export function CheckoutPageView() {
       if (selectId) {
         setAddressId(selectId);
       } else if (addrs.length > 0) {
-        const defaultAddr = addrs.find((a: any) => a.isDefault) || addrs[0];
+        const defaultAddr =
+          addrs.find((addr: CheckoutAddress) => addr.isDefault) || addrs[0];
         setAddressId(defaultAddr.id);
       } else {
         setAddressId(null);
       }
 
       if (moveNext) setStep(1);
-    } catch (err) {
+    } catch {
       setAddresses([]);
       setAddressId(null);
     } finally {
@@ -92,7 +137,7 @@ export function CheckoutPageView() {
       try {
         const res = await axios.get("/cart");
         setCartItems(res.data.cart || []);
-      } catch (err) {
+      } catch {
         setError("Failed to load cart items");
       } finally {
         setLoading(false);
@@ -103,7 +148,11 @@ export function CheckoutPageView() {
   }, []);
 
   useEffect(() => {
-    fetchAddresses();
+    const loadAddresses = async () => {
+      await fetchAddresses();
+    };
+
+    void loadAddresses();
   }, []);
 
   useEffect(() => {
@@ -112,7 +161,7 @@ export function CheckoutPageView() {
     };
   }, []);
 
-  const items = cartItems.map((cartItem: any) => {
+  const items = cartItems.map((cartItem) => {
     const product = cartItem.variant.product;
     const quantity = cartItem.quantity;
     const unitPrice = cartItem.variant.price;
@@ -140,26 +189,27 @@ export function CheckoutPageView() {
   const giftWrapCharge = giftWrap ? 9 : 0;
   const tax = Number((subtotal * 0.08).toFixed(2));
   const total = subtotal + shipping + tax + giftWrapCharge;
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const savings = hasItems ? Math.max(0, subtotal * 0.05) : 0;
 
   const selectedAddress = addresses.find((addr) => addr.id === addressId);
 
-  const deliveryOptions = useMemo(
-    () => [
-      {
-        id: "standard",
-        title: "Standard Delivery",
-        eta: "3-5 days",
-        price: baseShipping === 0 ? "Free" : formatCurrency(baseShipping),
-      },
-      {
-        id: "express",
-        title: "Express Delivery",
-        eta: "Next day",
-        price: formatCurrency(baseShipping + 18),
-      },
-    ],
-    [baseShipping]
-  );
+  const deliveryOptions = [
+    {
+      id: "standard" as const,
+      title: "Standard Delivery",
+      eta: "3-5 days",
+      price: baseShipping === 0 ? "Free" : formatCurrency(baseShipping),
+      badge: subtotal >= 180 ? "Free eligible" : "Best value",
+    },
+    {
+      id: "express" as const,
+      title: "Express Delivery",
+      eta: "Next day",
+      price: formatCurrency(baseShipping + 18),
+      badge: "Fastest",
+    },
+  ];
 
   const paymentOptions = [
     { id: "card", title: "Card", copy: "Visa, Mastercard" },
@@ -178,6 +228,11 @@ export function CheckoutPageView() {
       return;
     }
 
+    if (!isPaymentValid) {
+      alert("Please complete valid payment details before placing the order.");
+      return;
+    }
+
     setPlacingOrder(true);
 
     try {
@@ -192,6 +247,7 @@ export function CheckoutPageView() {
       if (data.success) {
         setOrderDetails(data.order || {});
         setShowSuccessModal(true);
+        await refreshCart();
 
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
@@ -212,9 +268,6 @@ export function CheckoutPageView() {
 
   return (
     <main className="checkout-page">
-      <div className="checkout-ambient checkout-ambient-one" />
-      <div className="checkout-ambient checkout-ambient-two" />
-
       {showSuccessModal && (
         <div className="checkout-modal-backdrop">
           <div className="checkout-success-modal">
@@ -250,47 +303,86 @@ export function CheckoutPageView() {
           <ArrowLeft className="size-4" />
           Back to cart
         </Link>
+        <ChevronRight className="size-4" />
+        <span>Checkout</span>
       </div>
 
       <section className="checkout-head">
-        <p className="eyebrow">Secure checkout</p>
-        <h1>Complete your order</h1>
-        <p>
-          Review delivery, payment, and order details before placing your order.
-        </p>
+        <div>
+          <p className="eyebrow">Secure checkout</p>
+          <h1>Review and place your order</h1>
+          <p>
+            Confirm your delivery address, shipping speed, payment method, and
+            final price before checkout.
+          </p>
+        </div>
+
+        <div className="checkout-head-panel">
+          <span>
+            <ShieldCheck className="size-4" />
+            Bank-grade payment security
+          </span>
+          <span>
+            <RotateCcw className="size-4" />
+            7 day return window
+          </span>
+        </div>
       </section>
 
       <div className="checkout-trust-bar">
         <span>
-          <ShieldCheck className="size-4" />
-          Secure payment
+          <PackageCheck className="size-4" />
+          {itemCount || 0} item(s) ready
         </span>
         <span>
           <Truck className="size-4" />
-          Fast delivery
+          Delivery slot: {deliverySlot}
         </span>
         <span>
-          <PackageCheck className="size-4" />
-          Easy tracking
+          <IndianRupee className="size-4" />
+          Pay securely at checkout
+        </span>
+        <span>
+          <Tag className="size-4" />
+          Offers applied in summary
+        </span>
+      </div>
+
+      <div className="checkout-reassurance-strip">
+        <span>
+          <LockKeyhole className="size-4" />
+          Encrypted payment session
+        </span>
+        <span>
+          <BadgeCheck className="size-4" />
+          Stock reserved after order confirmation
+        </span>
+        <span>
+          <Clock3 className="size-4" />
+          Estimated packing within 24 hours
         </span>
       </div>
 
       <div className="checkout-stepper">
         {[
-          { label: "Address", icon: MapPin },
-          { label: "Payment", icon: CreditCard },
+          { label: "Address", icon: MapPin, done: Boolean(addressId) },
+          { label: "Delivery", icon: Truck, done: true },
+          { label: "Payment", icon: CreditCard, done: step > 1 },
         ].map((item, idx) => {
           const Icon = item.icon;
+          const isActive =
+            idx === 0 ? step === 0 : idx === 2 ? step === 1 : false;
+          const isDone = item.done && !isActive;
 
           return (
             <div
               key={item.label}
-              className={`step ${
-                step === idx ? "active" : step > idx ? "done" : ""
+              className={`checkout-step ${
+                isActive ? "active" : isDone ? "done" : ""
               }`}
             >
               <div>
-                {step > idx ? <BadgeCheck className="size-4" /> : idx + 1}
+                {isDone ? <CheckCircle2 className="size-4" /> : idx + 1}
               </div>
               <span>
                 <Icon className="size-4" />
@@ -328,8 +420,9 @@ export function CheckoutPageView() {
                         <MapPin className="size-4" />
                       </div>
                       <div>
+                        <span className="checkout-section-label">Step 1</span>
                         <h2>Select Delivery Address</h2>
-                        <p>Choose where you want this order delivered.</p>
+                        <p>Choose where this order should be delivered.</p>
                       </div>
                     </div>
 
@@ -350,8 +443,8 @@ export function CheckoutPageView() {
                           />
 
                           <div>
-                            <strong>
-                              {addr.label || "Home"}{" "}
+                            <strong className="checkout-address-title">
+                              <span>{addr.label || "Home"}</span>
                               {addr.isDefault ? (
                                 <span className="checkout-default-badge">
                                   Default
@@ -367,18 +460,19 @@ export function CheckoutPageView() {
                             {addr.phone ? <small>{addr.phone}</small> : null}
                           </div>
                         </label>
-                      ))}
+                        ))}
                     </div>
 
-                    <button
+                    <Button
+                      type="button"
                       className="checkout-primary-action"
                       disabled={!addressId}
                       onClick={() => {
                         if (addressId) setStep(1);
                       }}
                     >
-                      Continue to Payment
-                    </button>
+                      Deliver to this address
+                    </Button>
                   </CardContent>
                 </Card>
               )}
@@ -395,14 +489,14 @@ export function CheckoutPageView() {
 
           {step === 1 && (
             <>
-              <button
+              <Button
                 type="button"
                 className="checkout-back-mini"
                 onClick={() => setStep(0)}
               >
                 <ArrowLeft className="size-4" />
                 Back to Address
-              </button>
+              </Button>
 
               <PaymentForm
                 paymentMethod={paymentMethod}
@@ -411,6 +505,7 @@ export function CheckoutPageView() {
                 giftWrap={giftWrap}
                 setGiftWrap={setGiftWrap}
                 paymentOptions={[...paymentOptions]}
+                onValidationChange={setIsPaymentValid}
               />
             </>
           )}
@@ -422,8 +517,9 @@ export function CheckoutPageView() {
                   <Truck className="size-4" />
                 </div>
                 <div>
+                  <span className="checkout-section-label">Delivery</span>
                   <h2>Delivery Preferences</h2>
-                  <p>Choose speed and delivery time for your order.</p>
+                  <p>Choose shipping speed and a convenient delivery window.</p>
                 </div>
               </div>
 
@@ -432,12 +528,13 @@ export function CheckoutPageView() {
                   <button
                     type="button"
                     key={opt.id}
-                    onClick={() => setDeliveryMethod(opt.id as any)}
+                    onClick={() => setDeliveryMethod(opt.id)}
                     className={`checkout-choice-card ${
                       deliveryMethod === opt.id ? "is-active" : ""
                     }`}
                   >
                     <div>
+                      <span className="checkout-choice-badge">{opt.badge}</span>
                       <strong>{opt.title}</strong>
                       <span>{opt.eta}</span>
                     </div>
@@ -468,17 +565,17 @@ export function CheckoutPageView() {
             <div className="checkout-feature-card">
               <ShieldCheck className="size-5" />
               <strong>Protected checkout</strong>
-              <span>Your payment and order data stays secure.</span>
+              <span>Secure payment processing for every order.</span>
             </div>
             <div className="checkout-feature-card">
-              <Sparkles className="size-5" />
-              <strong>Premium packaging</strong>
-              <span>Elegant packaging for a better unboxing.</span>
+              <PackageCheck className="size-5" />
+              <strong>Quality checked</strong>
+              <span>Items are verified before dispatch.</span>
             </div>
             <div className="checkout-feature-card">
               <Gift className="size-5" />
               <strong>Gift-ready</strong>
-              <span>Add gift wrap for a special delivery feel.</span>
+              <span>Add premium wrap from payment options.</span>
             </div>
           </div>
         </div>
@@ -489,7 +586,7 @@ export function CheckoutPageView() {
               <div className="checkout-summary-hero">
                 <div>
                   <span className="checkout-summary-kicker">Order Summary</span>
-                  <strong>{items.length} item(s)</strong>
+                  <strong>{itemCount} item(s)</strong>
                 </div>
                 <span className="checkout-summary-badge">
                   <ShieldCheck className="size-4" />
@@ -568,6 +665,10 @@ export function CheckoutPageView() {
                       <span>Estimated Tax</span>
                       <strong>{formatCurrency(tax)}</strong>
                     </div>
+                    <div className="checkout-savings-line">
+                      <span>Estimated Savings</span>
+                      <strong>{formatCurrency(savings)}</strong>
+                    </div>
                   </div>
 
                   <div className="checkout-summary-total">
@@ -575,17 +676,30 @@ export function CheckoutPageView() {
                     <strong>{formatCurrency(total)}</strong>
                   </div>
 
+                  <div className="checkout-mini-timeline">
+                    {[
+                      "Order confirmed",
+                      "Quality check",
+                      "Dispatch update",
+                    ].map((item, index) => (
+                      <span key={item}>
+                        <b>{index + 1}</b>
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+
                   <div className="checkout-summary-actions">
                     {step === 0 ? (
-                      <button
+                      <Button
                         type="button"
                         className="checkout-primary-action"
                         onClick={() => alert("Please complete address first")}
                       >
                         Complete Address First
-                      </button>
+                      </Button>
                     ) : (
-                      <button
+                      <Button
                         type="button"
                         className="checkout-primary-action"
                         onClick={handlePlaceOrder}
@@ -599,7 +713,7 @@ export function CheckoutPageView() {
                         ) : (
                           "Place Order"
                         )}
-                      </button>
+                      </Button>
                     )}
 
                     <CtaButton tone="light" asChild className="checkout-summary-button">
@@ -615,6 +729,10 @@ export function CheckoutPageView() {
                     <span>
                       <Truck className="size-4" />
                       Delivery updates after order confirmation
+                    </span>
+                    <span>
+                      <BadgeCheck className="size-4" />
+                      You saved {formatCurrency(savings)} on this order
                     </span>
                   </div>
                 </>

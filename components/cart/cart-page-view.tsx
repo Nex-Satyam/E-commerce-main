@@ -2,11 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  ArrowRight,
+  BadgeCheck,
+  Clock3,
   Loader2,
   Minus,
+  PackageCheck,
   Plus,
   ShieldCheck,
   ShoppingBag,
@@ -14,6 +18,11 @@ import {
   Truck,
 } from "lucide-react";
 import axios from "axios";
+
+import { Button } from "@/components/ui/button";
+import { useCart } from "@/components/cart/cart-provider";
+import { Card, CardContent } from "@/components/ui/card";
+import { CtaButton } from "@/components/home/cta-button";
 
 type CartApiItem = {
   id: string;
@@ -45,27 +54,48 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (
+      error as { response?: { data?: { error?: unknown } } }
+    ).response;
+
+    if (typeof response?.data?.error === "string") {
+      return response.data.error;
+    }
+  }
+
+  if (error instanceof Error) return error.message;
+
+  return fallback;
+}
+
 export default function CartPageView() {
+  const { refreshCart } = useCart();
   const [cartItems, setCartItems] = useState<CartApiItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     try {
       setError("");
       const res = await axios.get("/api/cart");
       setCartItems(res.data.cart || []);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to load cart");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load cart"));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchCart();
-  }, []);
+    const loadCart = async () => {
+      await fetchCart();
+    };
+
+    void loadCart();
+  }, [fetchCart]);
 
   const items = useMemo(() => {
     return cartItems.map((cartItem) => {
@@ -92,10 +122,16 @@ export default function CartPageView() {
   }, [cartItems]);
 
   const hasItems = items.length > 0;
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  const shipping = hasItems && subtotal < 180 ? 12 : 0;
+  const freeShippingThreshold = 180;
+  const amountToFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
+  const shipping = hasItems && subtotal < freeShippingThreshold ? 12 : 0;
   const tax = hasItems ? Number((subtotal * 0.08).toFixed(2)) : 0;
   const orderTotal = subtotal + shipping + tax;
+  const freeShippingProgress = hasItems
+    ? Math.min(100, (subtotal / freeShippingThreshold) * 100)
+    : 0;
 
   const updateQuantity = async (cartItemId: string, quantity: number) => {
     try {
@@ -108,8 +144,9 @@ export default function CartPageView() {
       });
 
       await fetchCart();
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to update cart");
+      await refreshCart();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to update cart"));
     } finally {
       setUpdatingId(null);
     }
@@ -117,219 +154,261 @@ export default function CartPageView() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#f8f4ed] flex items-center justify-center">
-        <div className="flex items-center gap-3 text-[#31483f]">
-          <Loader2 className="animate-spin" />
-          <span>Loading your cart...</span>
-        </div>
+      <main className="cart-page cart-page-loading">
+        <Card className="cart-loading-card py-0 shadow-none">
+          <CardContent className="cart-loading-content">
+            <Loader2 className="animate-spin" />
+            <span>Loading your cart...</span>
+          </CardContent>
+        </Card>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#f8f4ed] px-5 py-8 text-[#263b34]">
-      <div className="mx-auto max-w-7xl">
-        <Link
-          href="/"
-          className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#31483f]/20 px-4 py-2 text-sm hover:bg-white"
-        >
+    <main className="cart-page">
+      <div className="cart-breadcrumb">
+        <Link href="/" className="cart-back-link">
           <ArrowLeft size={16} />
           Continue Shopping
         </Link>
+        <span>/</span>
+        <strong>Cart</strong>
+      </div>
 
-        <section className="grid gap-8 lg:grid-cols-[1fr_420px]">
-          <div>
-            <p className="mb-2 text-sm uppercase tracking-[0.3em] text-[#7a8b83]">
-              Shopping Cart
-            </p>
+      <section className="cart-hero">
+        <div>
+          <p className="eyebrow">Shopping Cart</p>
+          <h1>Your selected pieces.</h1>
+          <p>
+            Review quantities, confirm availability, and move into checkout
+            when everything looks right.
+          </p>
+        </div>
 
-            <h1 className="font-serif text-5xl md:text-7xl">
-              Your selected pieces.
-            </h1>
+        <div className="cart-hero-panel">
+          <span>
+            <ShoppingBag className="size-4" />
+            {itemCount} item(s)
+          </span>
+          <span>
+            <ShieldCheck className="size-4" />
+            Secure checkout
+          </span>
+        </div>
+      </section>
 
-            <p className="mt-4 text-lg text-[#7a8b83]">
-              Review your items, update quantities, and proceed when your order
-              feels right.
-            </p>
+      <section className="cart-trust-strip">
+        <span>
+          <Truck className="size-4" />
+          Free delivery above {formatCurrency(freeShippingThreshold)}
+        </span>
+        <span>
+          <PackageCheck className="size-4" />
+          Quality checked before dispatch
+        </span>
+        <span>
+          <Clock3 className="size-4" />
+          Fast packing on eligible orders
+        </span>
+      </section>
 
-            {error && (
-              <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-600">
-                {error}
+      <section className="cart-layout">
+        <div className="cart-main">
+          {error && <div className="cart-error-box">{error}</div>}
+
+          {hasItems && (
+            <div className="cart-progress-card">
+              <div>
+                <p className="font-semibold">
+                  {amountToFreeShipping === 0
+                    ? "You unlocked free delivery."
+                    : `${formatCurrency(amountToFreeShipping)} away from free delivery.`}
+                </p>
+                <span>Cart value updates automatically with quantity changes.</span>
               </div>
-            )}
+              <div className="cart-progress-track">
+                <div style={{ width: `${freeShippingProgress}%` }} />
+              </div>
+            </div>
+          )}
 
-            <div className="mt-8 space-y-5">
-              {hasItems ? (
-                items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-[28px] border border-[#31483f]/25 bg-[#fffaf3] p-5 shadow-sm"
-                  >
-                    <div className="grid gap-5 md:grid-cols-[170px_1fr_180px]">
-                      <Link href={`/products/${item.slug}`}>
-                        <div className="relative aspect-square overflow-hidden rounded-[24px] bg-[#eee5d8]">
-                          <Image
-                            src={item.image}
-                            alt={item.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      </Link>
-
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.3em] text-[#7a8b83]">
-                            Product
-                          </p>
-
-                          <h2 className="mt-3 text-2xl font-semibold">
-                            {item.name}
-                          </h2>
-
-                          {item.description && (
-                            <p className="mt-2 line-clamp-2 text-[#7a8b83]">
-                              {item.description}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap gap-3 text-sm text-[#7a8b83]">
-                          <span className="rounded-full bg-white px-3 py-1">
-                            Size: {item.size}
-                          </span>
-                          <span className="rounded-full bg-white px-3 py-1">
-                            SKU: {item.sku}
-                          </span>
-                          <span className="rounded-full bg-white px-3 py-1">
-                            Available: {item.stock}
-                          </span>
+          <div className="cart-item-list">
+            {hasItems ? (
+              items.map((item) => (
+                <Card key={item.id} className="cart-item-card py-0 shadow-none">
+                  <CardContent className="cart-item-content">
+                    <Link
+                      href={`/products/${item.slug}`}
+                      className="cart-item-image-link"
+                    >
+                      <div className="cart-item-image-wrap">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="180px"
+                          className="cart-item-image"
+                        />
+                        <div className="cart-item-image-overlay">
+                          View <ArrowRight className="size-4" />
                         </div>
                       </div>
+                    </Link>
 
-                      <div className="flex flex-col items-start justify-between gap-5 md:items-end">
-                        <div className="flex items-center rounded-full border border-[#31483f]/25 bg-white p-1">
-                          <button
-                            type="button"
-                            disabled={updatingId === item.id}
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity - 1)
-                            }
-                            className="grid size-10 place-items-center rounded-full hover:bg-[#f0ebe2] disabled:opacity-50"
-                          >
-                            {item.quantity === 1 ? (
-                              <Trash2 size={16} />
-                            ) : (
-                              <Minus size={16} />
-                            )}
-                          </button>
+                    <div className="cart-item-copy">
+                      <div className="cart-item-info">
+                        <p className="cart-item-tag">Product</p>
+                        <h2>{item.name}</h2>
+                        {item.description && <p>{item.description}</p>}
+                      </div>
 
-                          <span className="min-w-12 text-center font-semibold">
-                            {updatingId === item.id ? (
-                              <Loader2 className="mx-auto animate-spin" size={18} />
-                            ) : (
-                              item.quantity
-                            )}
-                          </span>
+                      <div className="cart-item-variants">
+                        <span>Variant: {item.size}</span>
+                        <span>SKU: {item.sku}</span>
+                        <span>Available: {item.stock}</span>
+                      </div>
 
-                          <button
-                            type="button"
-                            disabled={
-                              updatingId === item.id ||
-                              item.quantity >= item.maxQuantity
-                            }
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity + 1)
-                            }
-                            className="grid size-10 place-items-center rounded-full hover:bg-[#f0ebe2] disabled:opacity-50"
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
-
-                        <div className="text-left md:text-right">
-                          <p className="text-sm text-[#7a8b83]">
-                            {formatCurrency(item.unitPrice)} each
-                          </p>
-                          <strong className="text-2xl">
-                            {formatCurrency(item.totalPrice)}
-                          </strong>
-                        </div>
+                      <div className="cart-item-mobile-price">
+                        <span>{formatCurrency(item.unitPrice)} each</span>
+                        <strong>{formatCurrency(item.totalPrice)}</strong>
                       </div>
                     </div>
+
+                    <div className="cart-item-actions">
+                      <div className="cart-quantity-control">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={updatingId === item.id}
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          aria-label={
+                            item.quantity === 1
+                              ? `Remove ${item.name}`
+                              : `Decrease ${item.name} quantity`
+                          }
+                        >
+                          {item.quantity === 1 ? (
+                            <Trash2 size={16} />
+                          ) : (
+                            <Minus size={16} />
+                          )}
+                        </Button>
+
+                        <span>
+                          {updatingId === item.id ? (
+                            <Loader2 className="mx-auto animate-spin" size={18} />
+                          ) : (
+                            item.quantity
+                          )}
+                        </span>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={
+                            updatingId === item.id ||
+                            item.quantity >= item.maxQuantity
+                          }
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          aria-label={`Increase ${item.name} quantity`}
+                        >
+                          <Plus size={16} />
+                        </Button>
+                      </div>
+
+                      <div className="cart-price-block">
+                        <span>{formatCurrency(item.unitPrice)} each</span>
+                        <strong>{formatCurrency(item.totalPrice)}</strong>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card className="cart-empty-card py-0 shadow-none">
+                <CardContent className="cart-empty-content">
+                  <div className="cart-empty-icon">
+                    <ShoppingBag size={34} />
                   </div>
-                ))
-              ) : (
-                <div className="rounded-[30px] border border-[#31483f]/20 bg-[#fffaf3] p-10 text-center">
-                  <ShoppingBag className="mx-auto mb-4 text-[#31483f]" size={44} />
-                  <h2 className="text-3xl font-semibold">Your cart is empty.</h2>
-                  <p className="mt-3 text-[#7a8b83]">
-                    Add a few products to continue checkout.
-                  </p>
-                  <Link
-                    href="/#products"
-                    className="mt-6 inline-flex rounded-full bg-[#31483f] px-6 py-3 text-white"
-                  >
-                    Browse Products
-                  </Link>
-                </div>
-              )}
-            </div>
+                  <p className="eyebrow">Cart Empty</p>
+                  <h2>Your cart is empty.</h2>
+                  <p>Add a few products to continue checkout.</p>
+                  <CtaButton asChild className="cart-empty-button">
+                    <Link href="/#products">Browse Products</Link>
+                  </CtaButton>
+                </CardContent>
+              </Card>
+            )}
           </div>
+        </div>
 
-          <aside className="h-fit rounded-[30px] border border-[#31483f]/25 bg-[#fffaf3] p-7 shadow-sm lg:sticky lg:top-8">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#7a8b83]">
-              Order Summary
-            </p>
-
-            <h2 className="mt-3 text-2xl font-semibold">
-              {hasItems ? "Ready to check out?" : "Your cart is empty"}
-            </h2>
-
-            <div className="mt-8 space-y-5 border-b border-[#31483f]/15 pb-6">
-              <div className="flex justify-between">
-                <span className="text-[#7a8b83]">Subtotal</span>
-                <strong>{formatCurrency(subtotal)}</strong>
+        <aside className="cart-summary">
+          <Card className="cart-summary-card py-0 shadow-none">
+            <CardContent className="cart-summary-content">
+              <div className="cart-summary-hero">
+                <div>
+                  <span>Order Summary</span>
+                  <h2>{hasItems ? "Ready to check out?" : "Your cart is empty"}</h2>
+                </div>
+                <BadgeCheck className="size-5" />
               </div>
 
-              <div className="flex justify-between">
-                <span className="text-[#7a8b83]">Shipping</span>
-                <strong>{shipping === 0 ? "Free" : formatCurrency(shipping)}</strong>
+              <div className="cart-summary-lines">
+                <div>
+                  <span>Subtotal</span>
+                  <strong>{formatCurrency(subtotal)}</strong>
+                </div>
+                <div>
+                  <span>Shipping</span>
+                  <strong>{shipping === 0 ? "Free" : formatCurrency(shipping)}</strong>
+                </div>
+                <div>
+                  <span>Estimated Tax</span>
+                  <strong>{formatCurrency(tax)}</strong>
+                </div>
               </div>
 
-              <div className="flex justify-between">
-                <span className="text-[#7a8b83]">Estimated Tax</span>
-                <strong>{formatCurrency(tax)}</strong>
+              <div className="cart-summary-total">
+                <span>Total</span>
+                <strong>{formatCurrency(orderTotal)}</strong>
               </div>
-            </div>
 
-            <div className="mt-6 flex justify-between text-xl">
-              <span>Total</span>
-              <strong>{formatCurrency(orderTotal)}</strong>
-            </div>
+              <Link
+                href="/checkout"
+                className={`cart-summary-button ${
+                  hasItems ? "" : "is-disabled"
+                }`}
+              >
+                Proceed to Checkout
+              </Link>
 
-            <Link
-              href="/checkout"
-              className={`mt-7 flex w-full justify-center rounded-full px-6 py-4 font-semibold ${
-                hasItems
-                  ? "bg-[#31483f] text-white hover:bg-[#263b34]"
-                  : "pointer-events-none bg-[#31483f]/30 text-[#31483f]/50"
-              }`}
-            >
-              Proceed to Checkout
-            </Link>
+              <div className="cart-summary-timeline">
+                {["Cart review", "Secure checkout", "Order dispatch"].map(
+                  (item, index) => (
+                    <span key={item}>
+                      <b>{index + 1}</b>
+                      {item}
+                    </span>
+                  )
+                )}
+              </div>
 
-            <div className="mt-6 space-y-3 text-sm text-[#7a8b83]">
-              <p className="flex items-center gap-2">
-                <Truck size={16} /> Free delivery above ₹180
-              </p>
-              <p className="flex items-center gap-2">
-                <ShieldCheck size={16} /> Secure checkout protected end to end
-              </p>
-            </div>
-          </aside>
-        </section>
-      </div>
+              <div className="cart-summary-notes">
+                <span>
+                  <Truck size={16} /> Free delivery above{" "}
+                  {formatCurrency(freeShippingThreshold)}
+                </span>
+                <span>
+                  <ShieldCheck size={16} /> Secure checkout protected end to end
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+      </section>
     </main>
   );
 }

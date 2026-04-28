@@ -1,19 +1,63 @@
 "use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Heart, ShoppingBag } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  BadgeCheck,
+  Heart,
+  Loader2,
+  PackageCheck,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Star,
+  Truck,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { CtaButton } from "@/components/home/cta-button";
-import { useEffect, useState } from "react";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import api from "@/lib/axios";
 import { Card, CardContent } from "@/components/ui/card";
-
 import { Button } from "@/components/ui/button";
 
+type WishlistProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  category?: { name?: string | null } | null;
+  images?: { url?: string | null }[];
+  variants?: {
+    id?: string;
+    name?: string;
+    price?: number;
+    stock?: number;
+  }[];
+  reviews?: unknown[];
+};
+
+type WishlistItem = {
+  id?: string;
+  productId: string;
+  product: WishlistProduct;
+};
+
+function formatCurrency(value?: number) {
+  if (!value) return "Price unavailable";
+
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value / 100);
+}
 
 export default function WishlistPageView() {
-  const [wishlist, setWishlist] = useState<any[]>([]);
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
   const { refreshWishlistCount } = useWishlist();
@@ -30,7 +74,8 @@ export default function WishlistPageView() {
         setLoading(false);
       }
     }
-    fetchWishlist();
+
+    void fetchWishlist();
   }, []);
 
   const handleRemove = async (productId: string) => {
@@ -39,9 +84,24 @@ export default function WishlistPageView() {
       await api.delete(`/wishlist?productId=${productId}`);
       setWishlist((prev) => prev.filter((item) => item.productId !== productId));
       refreshWishlistCount();
-    } catch {}
-    setRemoving(null);
+    } catch {
+      // Keep the item visible if the request fails.
+    } finally {
+      setRemoving(null);
+    }
   };
+
+  const wishlistStats = useMemo(() => {
+    const inStock = wishlist.filter(
+      (item) => (item.product.variants?.[0]?.stock || 0) > 0
+    ).length;
+
+    return [
+      { label: "Saved items", value: wishlist.length },
+      { label: "Ready to ship", value: inStock },
+      { label: "Need review", value: Math.max(wishlist.length - inStock, 0) },
+    ];
+  }, [wishlist]);
 
   return (
     <main className="wishlist-page">
@@ -53,68 +113,135 @@ export default function WishlistPageView() {
         <strong>Wishlist</strong>
       </div>
 
-      <section className="wishlist-shell">
-        <div className="wishlist-head">
+      <section className="wishlist-hero">
+        <div>
           <p className="eyebrow">Wishlist</p>
-          <h1>Saved pieces to revisit.</h1>
+          <h1>Saved pieces, ready when you are.</h1>
           <p>
-            Keep track of the pieces you love and move them into your cart when you are ready.
+            Review favourites, compare availability, and jump back into product
+            details with a cleaner shopping flow.
           </p>
         </div>
 
+        <div className="wishlist-hero-panel">
+          <span>
+            <Heart className="size-4 fill-current" />
+            Curated by you
+          </span>
+          <span>
+            <ShieldCheck className="size-4" />
+            Secure checkout ready
+          </span>
+        </div>
+      </section>
+
+      <section className="wishlist-shell">
+        <div className="wishlist-stat-grid">
+          {wishlistStats.map((stat) => (
+            <div key={stat.label} className="wishlist-stat-card">
+              <strong>{stat.value}</strong>
+              <span>{stat.label}</span>
+            </div>
+          ))}
+        </div>
+
         {loading ? (
-          <div className="text-center py-12 text-lg text-gray-500">Loading your wishlist...</div>
+          <Card className="wishlist-empty-card py-0 shadow-none">
+            <CardContent className="wishlist-empty-content">
+              <Loader2 className="size-6 animate-spin" />
+              <h2>Loading your wishlist...</h2>
+              <p>Gathering saved products and availability.</p>
+            </CardContent>
+          </Card>
         ) : wishlist.length > 0 ? (
           <div className="wishlist-grid">
             {wishlist.map((item) => {
               const product = item.product;
-              const image = product?.images?.[0]?.url || "/placeholder.png";
+              const image = product.images?.[0]?.url || "/placeholder.png";
+              const firstVariant = product.variants?.[0];
+              const isAvailable = (firstVariant?.stock || 0) > 0;
+
               return (
-                <Card key={product.id} className="wishlist-card py-0 shadow-none border border-gray-200 hover:shadow-lg transition-shadow">
+                <Card
+                  key={product.id}
+                  className="wishlist-card py-0 shadow-none"
+                >
                   <div className="wishlist-card-shell">
-                    <Link href={`/products/${product.slug}`} className="wishlist-image-link">
-                      <div className="wishlist-image-wrap rounded-2xl overflow-hidden border border-gray-100 bg-white">
+                    <Link
+                      href={`/products/${product.slug}`}
+                      className="wishlist-image-link"
+                    >
+                      <div className="wishlist-image-wrap">
                         <Image
                           src={image}
                           alt={product.name}
                           fill
-                          sizes="(max-width: 768px) 100vw, 20vw"
-                          className="wishlist-image object-cover"
+                          sizes="(max-width: 768px) 100vw, 28vw"
+                          className="wishlist-image"
                         />
+                        <div className="wishlist-image-overlay">
+                          <span>Open details</span>
+                          <ArrowUpRight className="size-4" />
+                        </div>
                       </div>
                     </Link>
+
                     <CardContent className="wishlist-card-content">
-                      <div className="wishlist-status-row flex items-center justify-between">
+                      <div className="wishlist-status-row">
                         <div className="wishlist-meta-stack">
-                          <span className="wishlist-chip is-light bg-gray-100 text-xs px-2 py-1 rounded-full">{product.category?.name || "-"}</span>
-                          <h2 className="font-semibold text-lg mt-1">{product.name}</h2>
+                          <span className="wishlist-chip is-light">
+                            <Sparkles className="size-3.5" />
+                            {product.category?.name || "Collection"}
+                          </span>
+                          <h2>{product.name}</h2>
                         </div>
-                        <div className="wishlist-card-tools flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            className="wishlist-toggle-button is-active border-red-200 text-red-500 hover:bg-red-50"
-                            aria-label={`Remove ${product.name} from wishlist`}
-                            aria-pressed="true"
-                            onClick={() => handleRemove(product.id)}
-                            disabled={removing === product.id}
-                          >
-                            <Heart className="size-4 fill-current" />
-                          </Button>
-                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          className="wishlist-toggle-button is-active"
+                          aria-label={`Remove ${product.name} from wishlist`}
+                          aria-pressed="true"
+                          onClick={() => handleRemove(product.id)}
+                          disabled={removing === product.id}
+                        >
+                          {removing === product.id ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <X className="size-4" />
+                          )}
+                        </Button>
                       </div>
 
-                      <p className="text-gray-600 text-sm mt-2 mb-3 line-clamp-2">{product.description}</p>
+                      <p className="line-clamp-2">{product.description}</p>
 
-                      <div className="wishlist-meta-row flex items-center justify-between text-sm mb-3">
-                        <strong className="text-lg text-[#253a33]">₹{(product.variants?.[0]?.price/100).toLocaleString("en-IN") || "-"}</strong>
-                        <span className="text-yellow-600 flex items-center gap-1">★ {product.reviews?.length || 0} reviews</span>
+                      <div className="wishlist-meta-row">
+                        <strong>{formatCurrency(firstVariant?.price)}</strong>
+                        <span>
+                          <Star className="size-4 fill-current" />
+                          {product.reviews?.length || 0} reviews
+                        </span>
                       </div>
 
-                      <div className="wishlist-actions flex gap-2">
+                      <div className="wishlist-card-footer">
+                        <span
+                          className={
+                            isAvailable
+                              ? "wishlist-availability"
+                              : "wishlist-availability is-muted"
+                          }
+                        >
+                          <BadgeCheck className="size-4" />
+                          {isAvailable
+                            ? `${firstVariant?.stock} in stock`
+                            : "Currently unavailable"}
+                        </span>
+
                         <CtaButton asChild className="wishlist-action-button">
-                          <Link href={`/products/${product.slug}`}>View Product</Link>
+                          <Link href={`/products/${product.slug}`}>
+                            View Product
+                          </Link>
                         </CtaButton>
                       </div>
                     </CardContent>
@@ -125,16 +252,37 @@ export default function WishlistPageView() {
           </div>
         ) : (
           <Card className="wishlist-empty-card py-0 shadow-none">
-            <CardContent className="wishlist-empty-content text-center py-12">
+            <CardContent className="wishlist-empty-content">
+              <div className="wishlist-empty-icon">
+                <ShoppingBag className="size-7" />
+              </div>
               <p className="eyebrow">Wishlist Empty</p>
-              <h2 className="text-2xl font-semibold mb-2">No saved pieces right now.</h2>
-              <p className="mb-4">Tap the heart on any product card to save it here for later.</p>
+              <h2>No saved pieces right now.</h2>
+              <p>Tap the heart on any product card to save it here for later.</p>
               <CtaButton asChild className="wishlist-action-button">
                 <Link href="/#products">Browse Products</Link>
               </CtaButton>
             </CardContent>
           </Card>
         )}
+
+        <div className="wishlist-feature-grid">
+          <div>
+            <Truck className="size-5" />
+            <strong>Fast dispatch</strong>
+            <span>Saved products show live stock before checkout.</span>
+          </div>
+          <div>
+            <PackageCheck className="size-5" />
+            <strong>Quality checked</strong>
+            <span>Every order is inspected before shipping.</span>
+          </div>
+          <div>
+            <ShieldCheck className="size-5" />
+            <strong>Protected checkout</strong>
+            <span>Your payment and order details stay secure.</span>
+          </div>
+        </div>
       </section>
     </main>
   );

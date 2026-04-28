@@ -7,37 +7,59 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+
+type SliderProduct = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  images?: { url?: string | null }[];
+};
 
 export function HeroSlider() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<SliderProduct[]>([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
 
   useEffect(() => {
+    let ignore = false;
+
     async function fetchProducts() {
-      const res = await fetch("/api/product/random");
-      let data;
       try {
-        data = await res.json();
+        const res = await fetch("/api/product/random");
+        const data = await res.json();
+
+        if (!ignore) {
+          setProducts(Array.isArray(data) ? data : []);
+        }
       } catch {
-        data = [];
+        if (!ignore) setProducts([]);
+      } finally {
+        if (!ignore) setLoading(false);
       }
-      if (!Array.isArray(data)) {
-        data = [];
-      }
-      setProducts(data);
     }
-    fetchProducts();
+
+    void fetchProducts();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const goToPrevious = () => {
+    if (products.length <= 1) return;
+
     setActiveIndex((currentIndex) =>
       currentIndex === 0 ? products.length - 1 : currentIndex - 1,
     );
   };
 
   const goToNext = () => {
+    if (products.length <= 1) return;
+
     setActiveIndex((currentIndex) => (currentIndex + 1) % products.length);
   };
 
@@ -59,11 +81,16 @@ export function HeroSlider() {
             </div>
           </>
         ) : (
-          <>
-            <p className="eyebrow">Loading...</p>
-            <h2>Loading product...</h2>
-            <p>Please wait while we load the product details.</p>
-          </>
+          <div className="hero-copy-skeleton" aria-busy={loading}>
+            <Skeleton className="hero-skeleton-eyebrow" />
+            <Skeleton className="hero-skeleton-title" />
+            <Skeleton className="hero-skeleton-text" />
+            <Skeleton className="hero-skeleton-text short" />
+            <div className="hero-actions">
+              <Skeleton className="hero-skeleton-button" />
+              <Skeleton className="hero-skeleton-button light" />
+            </div>
+          </div>
         )}
       </div>
 
@@ -73,6 +100,13 @@ export function HeroSlider() {
             className="slider-track"
             style={{ transform: `translateX(-${activeIndex * 100}%)` }}
           >
+            {products.length === 0 && loading ? (
+              <div className="slide-link">
+                <div className="slide-image-wrap slide-image-only">
+                  <Skeleton className="hero-skeleton-image" />
+                </div>
+              </div>
+            ) : null}
             {products.map((product, index) => (
               <div
                 key={product.id}
@@ -87,7 +121,7 @@ export function HeroSlider() {
                     } else {
                       alert("Product not found or unavailable.");
                     }
-                  } catch (e) {
+                  } catch {
                     alert("Error loading product details.");
                   }
                 }}
@@ -121,6 +155,7 @@ export function HeroSlider() {
               size="icon-sm"
               className="slider-arrow"
               onClick={goToPrevious}
+              disabled={products.length <= 1}
               aria-label="Previous slide"
             >
               <ArrowLeft className="size-4" />
@@ -131,6 +166,7 @@ export function HeroSlider() {
               size="icon-sm"
               className="slider-arrow"
               onClick={goToNext}
+              disabled={products.length <= 1}
               aria-label="Next slide"
             >
               <ArrowRight className="size-4" />

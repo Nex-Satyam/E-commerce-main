@@ -8,8 +8,7 @@ import { ProfileDropdown } from "@/components/home/profile-dropdown";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import { Button } from "@/components/ui/button";
 function HeaderActions() {
-  const { getCartItemCount } = useCart();
-  const cartItemCount = getCartItemCount();
+  const { cartItemCount } = useCart();
   const { wishlistCount } = useWishlist();
 
   return (
@@ -35,7 +34,9 @@ function HeaderActions() {
       >
         <Link href="/cart">
           <ShoppingBag className="size-4" />
-          <span className="header-badge-count">{cartItemCount}</span>
+          <span className="header-badge-count" aria-live="polite">
+            {cartItemCount}
+          </span>
         </Link>
       </Button>
       <ProfileDropdown />

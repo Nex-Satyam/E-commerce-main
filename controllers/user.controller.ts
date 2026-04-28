@@ -1,4 +1,11 @@
-  import { getUserById, updateUserProfile } from "@/services/user.service";
+import { getUserById, updateUserProfile } from "@/services/user.service";
+
+type ProfileUpdateBody = {
+  name?: unknown;
+  phone?: unknown;
+  image?: unknown;
+  address?: unknown;
+};
 
 export const getProfileController = async (userId: string) => {
   if (!userId) throw new Error("User ID missing");
@@ -11,14 +18,20 @@ export const getProfileController = async (userId: string) => {
   return user;
 };
 
-export const updateProfileController = async (userId: string, body: any) => {
+function optionalString(value: unknown) {
+  return typeof value === "string" ? value.trim() : undefined;
+}
+
+export const updateProfileController = async (
+  userId: string,
+  body: ProfileUpdateBody,
+) => {
   if (!userId) throw new Error("Unauthorized");
 
   return await updateUserProfile(userId, {
-    name: body.name,
-    phone: body.phone,
-    image: body.image,
-    address: body.address,
-    city: body.city,
+    name: optionalString(body.name),
+    phone: optionalString(body.phone),
+    image: optionalString(body.image),
+    address: optionalString(body.address),
   });
 };

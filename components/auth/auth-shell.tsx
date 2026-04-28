@@ -1,4 +1,4 @@
-import { ShieldCheck, Sparkles } from "lucide-react";
+import { BadgeCheck, Heart, PackageCheck, ShieldCheck, Sparkles } from "lucide-react";
 
 type AuthShellProps = {
   eyebrow: string;
@@ -45,6 +45,29 @@ export function AuthShell({
             <span>
               <Sparkles className="size-4" /> Admin access uses the same login screen with role-based entry
             </span>
+          </div>
+
+          <div className="auth-trust-grid" aria-label="Account benefits">
+            <div>
+              <ShieldCheck className="size-5" />
+              <span>Secure</span>
+              <strong>Protected session</strong>
+            </div>
+            <div>
+              <Heart className="size-5" />
+              <span>Wishlist</span>
+              <strong>Saved favorites</strong>
+            </div>
+            <div>
+              <PackageCheck className="size-5" />
+              <span>Orders</span>
+              <strong>Track delivery</strong>
+            </div>
+            <div>
+              <BadgeCheck className="size-5" />
+              <span>Checkout</span>
+              <strong>Faster flow</strong>
+            </div>
           </div>
         </div>
 
