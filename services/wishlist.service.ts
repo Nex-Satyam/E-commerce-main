@@ -42,12 +42,10 @@ export const addToWishlist = async ({
   if (!product) throw new Error("Product not found");
   if (!product.isActive) throw new Error("Product is not available");
 
-  const existing = await prisma.wishlist.findUnique({
+  const existing = await prisma.wishlist.findFirst({
     where: {
-      userId_productId: {
-        userId,
-        productId,
-      },
+      userId,
+      productId,
     },
   });
 
@@ -74,12 +72,10 @@ export const removeFromWishlist = async ({
   if (!userId) throw new Error("Please login first");
   if (!productId) throw new Error("Product id is required");
 
-  const existing = await prisma.wishlist.findUnique({
+  const existing = await prisma.wishlist.findFirst({
     where: {
-      userId_productId: {
-        userId,
-        productId,
-      },
+      userId,
+      productId,
     },
   });
 
@@ -88,12 +84,7 @@ export const removeFromWishlist = async ({
   }
 
   return await prisma.wishlist.delete({
-    where: {
-      userId_productId: {
-        userId,
-        productId,
-      },
-    },
+    where: { id: existing.id },
   });
 };
 
@@ -104,23 +95,16 @@ export const toggleWishlist = async ({
   userId: string;
   productId: string;
 }) => {
-  const existing = await prisma.wishlist.findUnique({
+  const existing = await prisma.wishlist.findFirst({
     where: {
-      userId_productId: {
-        userId,
-        productId,
-      },
+      userId,
+      productId,
     },
   });
 
   if (existing) {
     await prisma.wishlist.delete({
-      where: {
-        userId_productId: {
-          userId,
-          productId,
-        },
-      },
+      where: { id: existing.id },
     });
 
     return {
@@ -144,12 +128,10 @@ export const isProductWishlisted = async ({
   userId: string;
   productId: string;
 }) => {
-  const existing = await prisma.wishlist.findUnique({
+  const existing = await prisma.wishlist.findFirst({
     where: {
-      userId_productId: {
-        userId,
-        productId,
-      },
+      userId,
+      productId,
     },
   });
 

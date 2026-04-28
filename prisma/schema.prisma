@@ -280,14 +280,14 @@ model Notification {
 }
 
 model Wishlist {
-  id      String   @id @default(cuid())
-  addedAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  addedAt   DateTime @default(now())
 
-  userId String
-  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  userId    String
   productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
   @@index([userId])
