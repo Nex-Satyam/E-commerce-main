@@ -1,0 +1,1 @@
+// This file is intentionally left blank. All middleware logic has moved to proxy.ts as per Next.js 16+ requirements.
