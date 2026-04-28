@@ -11,7 +11,11 @@ import { Button } from "@/components/ui/button";
 export function HeroSlider() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [products, setProducts] = useState<any[]>([]);
+  const [typedName, setTypedName] = useState("");
+  const [typedDescription, setTypedDescription] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const router = useRouter();
+  const activeProduct = products[activeIndex];
 
   useEffect(() => {
     async function fetchProducts() {
@@ -30,6 +34,49 @@ export function HeroSlider() {
     return () => window.clearInterval(intervalId);
   }, [products]);
 
+  useEffect(() => {
+    if (!activeProduct) {
+      setTypedName("");
+      setTypedDescription("");
+      setIsTyping(false);
+      return;
+    }
+
+    const name = activeProduct.name || "";
+    const description = activeProduct.description || "No description available.";
+    const fullText = `${name}\n${description}`;
+    let characterIndex = 0;
+    let timeoutId: number;
+
+    setTypedName("");
+    setTypedDescription("");
+    setIsTyping(true);
+
+    const typeNextCharacter = () => {
+      characterIndex += 1;
+      const visibleText = fullText.slice(0, characterIndex);
+      const [nextName = "", nextDescription = ""] = visibleText.split("\n");
+
+      setTypedName(nextName);
+      setTypedDescription(nextDescription);
+
+      if (characterIndex >= fullText.length) {
+        setIsTyping(false);
+        return;
+      }
+
+      const currentCharacter = fullText[characterIndex - 1];
+      const nextDelay =
+        currentCharacter === "\n" ? 180 : currentCharacter === " " ? 34 : 22;
+
+      timeoutId = window.setTimeout(typeNextCharacter, nextDelay);
+    };
+
+    timeoutId = window.setTimeout(typeNextCharacter, 120);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeProduct]);
+
   const goToPrevious = () => {
     setActiveIndex((currentIndex) =>
       currentIndex === 0 ? products.length - 1 : currentIndex - 1,
@@ -43,17 +90,19 @@ export function HeroSlider() {
   return (
     <section className="hero-shell" id="slider">
       <div className="hero-copy">
-        {products[activeIndex] ? (
+        {activeProduct ? (
           <>
             <p className="eyebrow">Featured Product</p>
-            <h2>{products[activeIndex].name}</h2>
-            <p>{products[activeIndex].description || "No description available."}</p>
+            <div className={isTyping ? "typing-block is-typing" : "typing-block"}>
+              <h2 className="typing-text">{typedName}</h2>
+              <p className="typing-text">{typedDescription}</p>
+            </div>
             <div className="hero-actions">
               <CtaButton asChild>
-                <a href={`#products`}>View All Products</a>
+                <a className="bg-amber-50 hover:bg-white" href={`#products`}>View All Products</a>
               </CtaButton>
               <CtaButton tone="light" asChild>
-                <a href={`/products/${products[activeIndex].slug}`}>View Details</a>
+                <a  href={`/products/${activeProduct.slug}`}>View Details</a>
               </CtaButton>
             </div>
           </>

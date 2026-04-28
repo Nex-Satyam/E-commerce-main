@@ -4,14 +4,14 @@ import { SiteHeader } from "@/components/home/site-header";
 import { ProductDetailView } from "@/components/product/product-detail-view";
 
 type ProductPageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const { slug } = params;
+  const { slug } = await params;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/product/slug/${slug}`);
+  const res = await fetch(`${baseUrl}/api/product/slug/${encodeURIComponent(slug)}`);
   if (!res.ok) {
     notFound();
   }

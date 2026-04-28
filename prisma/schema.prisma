@@ -279,3 +279,19 @@ model Notification {
   @@index([userId, createdAt]) // fast notification inbox sorted by date
   @@schema("mini_e_commerce")
 }
+
+model Wishlist {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId    String   @db.Text
+  productId String   @db.Text
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId], name: "Wishlist_unique_user_product")
+  @@index([userId], name: "Wishlist_userId_idx")
+  @@index([productId], name: "Wishlist_productId_idx")
+
+  @@schema("mini_e_commerce")
+}

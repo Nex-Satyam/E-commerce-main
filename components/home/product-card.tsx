@@ -80,7 +80,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             className="product-image"
           />
         </div>
-        <CardContent className="product-copy px-5 pb-5">
+        <CardContent className="product-copy px-2 pb-2">
           <div>
             <h3>{product.name}</h3>
             <p>{product.description}</p>
