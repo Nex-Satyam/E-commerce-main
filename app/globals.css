@@ -3792,11 +3792,28 @@ button {
 }
 
 @media (max-width: 1080px) {
-  .header-top,
   .hero-shell,
   .split-heading,
   .site-footer {
     grid-template-columns: 1fr;
+  }
+
+  .header-top {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "brand actions"
+      "search search";
+    gap: 10px 12px;
+  }
+
+  .brand-block {
+    grid-area: brand;
+  }
+
+  .searchbar-wrapper {
+    grid-area: search;
+    width: 100%;
+    min-width: 0;
   }
 
   .footer-hero-row,
@@ -3834,7 +3851,10 @@ button {
   }
 
   .header-tools {
-    justify-content: flex-start;
+    grid-area: actions;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    min-width: 0;
   }
 
   .site-header {
