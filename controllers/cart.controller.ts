@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
   addToCart,
+  clearCart,
   getCart,
   removeCartItemById,
   updateCartItemById,
@@ -160,6 +161,32 @@ export async function handleDeleteCartItem(req: NextRequest) {
       {
         error:
           error instanceof Error ? error.message : "Failed to remove cart item",
+      },
+      { status: 400 }
+    );
+  }
+}
+
+export async function handleClearCart() {
+  try {
+    const userId = await getUserId();
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await clearCart(userId);
+
+    return NextResponse.json({
+      success: true,
+      message: "Cart cleared",
+    });
+  } catch (error) {
+    console.error("CLEAR CART ERROR:", error);
+
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Failed to clear cart",
       },
       { status: 400 }
     );

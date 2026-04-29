@@ -94,6 +94,7 @@ function normalizeProduct(product: SearchProduct): ProductItem {
   const rating = getAverageRating(product);
 
   return {
+    id: product.id,
     slug: product.slug,
     name: product.name,
     price: minPrice ? formatCurrencyFromPaise(minPrice) : "Price on request",

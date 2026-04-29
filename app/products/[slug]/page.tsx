@@ -47,7 +47,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   return (
     <>
       <SiteHeader />
-      <ProductDetailView product={product} recommendedProducts={recommendedProducts} />
+      <ProductDetailView product={product}  />
       <SiteFooter />
     </>
   );

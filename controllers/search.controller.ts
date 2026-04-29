@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import  { NextRequest ,NextResponse} from "next/server";
+import { Prisma } from "@prisma/client";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function handleSearch(req: NextRequest) {
   try {
@@ -9,25 +10,33 @@ export async function handleSearch(req: NextRequest) {
     const price = searchParams.get("price") || "";
     const rating = parseInt(searchParams.get("rating") || "0");
 
-    const where: any = { isActive: true };
+    const where: Prisma.ProductWhereInput = { isActive: true };
     if (q) {
       where.OR = [
         { name: { contains: q, mode: "insensitive" } },
-        { slug: { contains: q, mode: "insensitive" } }
+        { slug: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { brand: { contains: q, mode: "insensitive" } },
       ];
     }
     if (category) {
-      where.category = { name: category };
+      where.category = { name: { equals: category, mode: "insensitive" } };
     }
     if (price) {
       const [min, max] = price.split("-").map(Number);
-      where.price = { gte: min, lte: max };
-    }
-    if (rating && rating > 0) {
-      where.rating = { gte: rating };
+      if (!Number.isNaN(min) && !Number.isNaN(max)) {
+        where.variants = {
+          some: {
+            price: {
+              gte: min,
+              lte: max,
+            },
+          },
+        };
+      }
     }
 
-    const products = await prisma.product.findMany({
+    const productsResult = await prisma.product.findMany({
       where,
       include: {
         variants: true,
@@ -37,6 +46,19 @@ export async function handleSearch(req: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
     });
+
+    const products =
+      rating && rating > 0
+        ? productsResult.filter((product) => {
+            if (!product.reviews.length) return rating <= 4;
+            const average =
+              product.reviews.reduce((sum, review) => sum + review.rating, 0) /
+              product.reviews.length;
+
+            return average >= rating;
+          })
+        : productsResult;
+
     return NextResponse.json({ products });
   } catch (err) {
     console.error("API Search error:", err);
