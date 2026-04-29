@@ -1,45 +1,63 @@
 "use client";
 
-import { products } from "@/components/home/home-data";
 import ProductCard from "@/components/home/product-card";
+import { ProductItem } from "@/components/home/home-data";
 import { SectionHeading } from "@/components/home/section-heading";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import axios from "@/lib/axios";
 import { useEffect, useState } from "react";
 
-const HOME_FETCH_TIMEOUT_MS = 3000;
+function ProductCardSkeleton() {
+  return (
+    <Card className="product-card product-card-skeleton py-0 shadow-none">
+      <div className="product-card-topbar">
+        <Skeleton className="product-skeleton-pill" />
+        <Skeleton className="product-skeleton-icon" />
+      </div>
+      <Skeleton className="product-skeleton-image" />
+      <CardContent className="product-copy px-5 pb-5">
+        <div className="product-skeleton-copy">
+          <Skeleton className="product-skeleton-title" />
+          <Skeleton className="product-skeleton-text" />
+          <Skeleton className="product-skeleton-text short" />
+        </div>
+        <div className="product-meta">
+          <Skeleton className="product-skeleton-price" />
+          <Skeleton className="product-skeleton-button" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function ProductsSection() {
-  const [featuredProducts, setFeaturedProducts] = useState(products);
+  const [featuredProducts, setFeaturedProducts] = useState<ProductItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), HOME_FETCH_TIMEOUT_MS);
+    let ignore = false;
 
     const fetchFeaturedProducts = async () => {
       try {
-        const response = await fetch("/api/product?view=card", {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-        const data = await response.json();
+        const response = await axios.get("/product");
 
-        if (data?.success && Array.isArray(data.data) && data.data.length > 0) {
-          setFeaturedProducts(data.data.slice(0, 12));
+        if (!ignore && response?.data?.success) {
+          setFeaturedProducts(response.data.data || []);
         }
-      } catch {
-        if (!controller.signal.aborted) {
-          setError("Showing saved products while live products load.");
-        }
+      } catch (err) {
+        console.error("Error fetching products:", err);
+        if (!ignore) setError("Failed to load products");
       } finally {
-        window.clearTimeout(timeoutId);
+        if (!ignore) setLoading(false);
       }
     };
 
-    fetchFeaturedProducts();
+    void fetchFeaturedProducts();
 
     return () => {
-      window.clearTimeout(timeoutId);
-      controller.abort();
+      ignore = true;
     };
   }, []);
 
@@ -52,17 +70,27 @@ export function ProductsSection() {
         split
       />
 
+      {loading && (
+        <div className="product-grid" aria-busy="true" aria-label="Loading featured products">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <ProductCardSkeleton key={index} />
+          ))}
+        </div>
+      )}
+
       {error && <p className="text-red-500">{error}</p>}
 
-      <div className="product-grid">
-        {featuredProducts.length > 0 ? (
-          featuredProducts.map((product, index) => (
-            <ProductCard key={product.slug} product={product} priority={index < 4} />
-          ))
-        ) : (
-          <p>No products found</p>
-        )}
-      </div>
+      {!loading && !error && (
+        <div className="product-grid">
+          {featuredProducts.length > 0 ? (
+            featuredProducts.map((product) => (
+              <ProductCard key={product.slug} product={product} />
+            ))
+          ) : (
+            <p>No products found</p>
+          )}
+        </div>
+      )}
     </section>
   );
 }

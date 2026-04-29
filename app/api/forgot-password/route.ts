@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { resend } from "@/lib/resend";
+import { sendEmail } from "@/lib/email";
 
 export async function POST(req:Request) {
   try{
@@ -17,14 +17,14 @@ export async function POST(req:Request) {
       where:{email},
       data:{resetToken}
     });
-    await resend.emails.send({
-      from:"E-commerce App <no-reply@ecommerce.com>",
+    await sendEmail({
       to:email,
       subject:"Password Reset",
       html:`<p>Click <a href="http://localhost:3000/reset?token=${resetToken}">Reset</a> to reset your password</p>`
     });
     return new Response(JSON.stringify({message:"Password reset email sent"}),{status:200});
   } catch (error) {
+    console.error("Forgot password email error", error);
     return new Response(JSON.stringify({message:"Internal server error"}),{status:500});
   }
 }

@@ -12,6 +12,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   const res = await fetch(`${baseUrl}/api/product/slug/${encodeURIComponent(slug)}`);
+
   if (!res.ok) {
     notFound();
   }
@@ -37,7 +38,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
         .sort((a: { category?: string; tag?: string }, b: { category?: string; tag?: string }) => {
           const aMatches = a.category === productCategory || a.tag === productCategory;
           const bMatches = b.category === productCategory || b.tag === productCategory;
-
           if (aMatches === bMatches) return 0;
           return aMatches ? -1 : 1;
         })

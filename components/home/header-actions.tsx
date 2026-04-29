@@ -3,13 +3,12 @@
 import { Heart, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 
-import { getCartItemCount } from "@/components/home/home-data";
+import { useCart } from "@/components/cart/cart-provider";
 import { ProfileDropdown } from "@/components/home/profile-dropdown";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import { Button } from "@/components/ui/button";
-
-export function HeaderActions() {
-  const cartItemCount = getCartItemCount();
+function HeaderActions() {
+  const { cartItemCount } = useCart();
   const { wishlistCount } = useWishlist();
 
   return (
@@ -35,10 +34,14 @@ export function HeaderActions() {
       >
         <Link href="/cart">
           <ShoppingBag className="size-4" />
-          <span className="header-badge-count">{cartItemCount}</span>
+          <span className="header-badge-count" aria-live="polite">
+            {cartItemCount}
+          </span>
         </Link>
       </Button>
       <ProfileDropdown />
     </div>
   );
 }
+
+export default HeaderActions;

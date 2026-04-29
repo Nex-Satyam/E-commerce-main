@@ -1,9 +1,9 @@
-import NextAuth, { type AuthOptions } from "next-auth";
+import { type AuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcrypt";
 import { prisma } from "./prisma";
-import { resend } from "@/lib/mail";
+import { sendEmail } from "@/lib/email";
 
 declare module "next-auth" {
   interface Session {
@@ -111,7 +111,7 @@ export const authOptions: AuthOptions = {
       }
       return session;
     },
-    async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
+    async redirect({ baseUrl }: { url: string; baseUrl: string }) {
       return baseUrl + "/";
     },
   },
@@ -119,8 +119,7 @@ export const authOptions: AuthOptions = {
   events: {
     async signIn({ user }) {
       if (user?.email) {
-        await resend.emails.send({
-          from: "no-reply@yourdomain.com",
+        await sendEmail({
           to: user.email,
           subject: "Login Notification",
           html: `<p>Hello ${user.name || ""},<br>Your account was just logged in. If this wasn't you, please secure your account.</p>`,
@@ -129,8 +128,7 @@ export const authOptions: AuthOptions = {
     },
     async createUser({ user }) {
       if (user?.email) {
-        await resend.emails.send({
-          from: "no-reply@yourdomain.com",
+        await sendEmail({
           to: user.email,
           subject: "Welcome to Offwhite Atelier!",
           html: `<p>Hello ${user.name || ""},<br>Thank you for signing up at Offwhite Atelier. We're excited to have you!</p>`,

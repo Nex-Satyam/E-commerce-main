@@ -44,48 +44,32 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-  {navItems.map((item) => {
-    const Icon = item.icon;
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              pathname === item.href ||
+              (item.href === "/admin/products" &&
+                pathname.startsWith("/admin/products/"));
 
-    const isActive =
-      pathname === item.href ||
-      (item.href === "/admin/products" &&
-        pathname.startsWith("/admin/products/"));
-
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        title={!isMobileOpen ? item.label : undefined}
-        className={`
-          flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all whitespace-nowrap overflow-hidden
-          ${
-            isActive
-              ? "bg-[#185FA5] text-white shadow-sm"
-              : "text-[#5F5E5A] hover:bg-[#E6F1FB] hover:text-[#185FA5]"
-          }
-          ${
-            isMobileOpen
-              ? "gap-3"
-              : "justify-center md:justify-start md:gap-3"
-          }
-        `}
-      >
-        <Icon className="size-5 shrink-0" />
-
-        <span
-          className={`transition-all ${
-            isMobileOpen
-              ? "w-auto opacity-100"
-              : "w-0 opacity-0 md:w-auto md:opacity-100"
-          }`}
-        >
-          {item.label}
-        </span>
-      </Link>
-    );
-  })}
-</nav>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={!isMobileOpen ? item.label : undefined}
+                className={`
+                  flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all whitespace-nowrap overflow-hidden
+                  ${isActive ? "bg-[#185FA5] text-white shadow-sm" : "text-[#5F5E5A] hover:bg-[#E6F1FB] hover:text-[#185FA5]"}
+                  ${isMobileOpen ? "gap-3" : "justify-center md:justify-start md:gap-3"}
+                `}
+              >
+                <Icon className="size-5 shrink-0" />
+                <span className={`transition-all ${isMobileOpen ? "w-auto opacity-100" : "w-0 opacity-0 md:w-auto md:opacity-100"}`}>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
       </aside>
       <div className="flex-1 transition-all duration-300 ml-16 md:ml-64">
         <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:px-8">

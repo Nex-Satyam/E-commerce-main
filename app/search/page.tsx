@@ -1,144 +1,381 @@
 "use client";
 
-import { Suspense } from "react";
+import Link from "next/link";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
-// import { ProductItem } from "@/components/home/home-data";
-import { searchProducts, SearchParams } from "@/services/search.service";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Filter,
+  PackageSearch,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  Tag,
+  X,
+} from "lucide-react";
+
 import ProductCard from "@/components/home/product-card";
 import { SiteHeader } from "@/components/home/site-header";
 import { SiteFooter } from "@/components/home/site-footer";
+import { CtaButton } from "@/components/home/cta-button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { searchProducts } from "@/services/search.service";
+import { ProductItem } from "@/components/home/home-data";
 
+type SearchProductImage = {
+  url?: string | null;
+  altText?: string | null;
+};
 
+type SearchProductVariant = {
+  name?: string;
+  sku?: string;
+  price?: number;
+  stock?: number;
+};
+
+type SearchProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  brand?: string | null;
+  images?: SearchProductImage[];
+  variants?: SearchProductVariant[];
+  category?: { name?: string | null } | null;
+  reviews?: { rating?: number | null }[];
+};
+
+const categories = ["Mobiles", "Clothing", "Electronics", "Books", "Home", "Toys"];
+
+const priceRanges = [
+  { label: "Under Rs. 1,000", value: "0-100000" },
+  { label: "Rs. 1,000 - Rs. 2,500", value: "100000-250000" },
+  { label: "Rs. 2,500 - Rs. 5,000", value: "250000-500000" },
+  { label: "Above Rs. 5,000", value: "500000-10000000" },
+];
+
+function useDebouncedValue<T>(value: T, delay = 350) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedValue(value), delay);
+    return () => window.clearTimeout(timeout);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+function formatCurrencyFromPaise(value = 0) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value / 100);
+}
+
+function getAverageRating(product: SearchProduct) {
+  const ratings = product.reviews?.map((review) => review.rating || 0).filter(Boolean) || [];
+  if (!ratings.length) return 4;
+
+  return Number((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(1));
+}
+
+function normalizeProduct(product: SearchProduct): ProductItem {
+  const prices = product.variants?.map((variant) => variant.price || 0).filter(Boolean) || [];
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const primaryImage = product.images?.[0]?.url || "/placeholder.png";
+  const firstVariant = product.variants?.[0];
+  const rating = getAverageRating(product);
+
+  return {
+    slug: product.slug,
+    name: product.name,
+    price: minPrice ? formatCurrencyFromPaise(minPrice) : "Price on request",
+    tag: product.brand || product.category?.name || "Premium",
+    image: primaryImage,
+    images: product.images?.map((image) => image.url || "/placeholder.png") || [primaryImage],
+    variants: product.variants as ProductItem["variants"],
+    description: product.description || "A carefully selected product from the latest store edit.",
+    longDescription: product.description || "",
+    details: [],
+    sizes: [],
+    colors: [],
+    rating,
+    reviewCount: product.reviews?.length || 0,
+    sku: firstVariant?.sku || product.slug,
+    category: product.category?.name || "Collection",
+    material: "Premium finish",
+    fit: "Standard",
+    reviews: [],
+  };
+}
 
 function SearchResults() {
   const searchParams = useSearchParams();
-  const query = searchParams.get("q") || "";
+  const initialQuery = searchParams.get("q") || "";
+  const [searchInput, setSearchInput] = useState(initialQuery);
   const [category, setCategory] = useState("");
   const [priceRange, setPriceRange] = useState("");
   const [selectedRating, setSelectedRating] = useState(0);
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // For demo, you can hardcode categories or fetch from API
-  const categories = ["Electronics", "Clothing", "Books", "Home", "Toys"];
-  const priceRanges = [
-    { label: "Under ₹60", value: "0-60" },
-    { label: "₹60 - ₹100", value: "60-100" },
-    { label: "₹100 - ₹150", value: "100-150" },
-    { label: "Above ₹150", value: "150-10000" },
-  ];
+  const debouncedQuery = useDebouncedValue(searchInput.trim(), 350);
+  const debouncedCategory = useDebouncedValue(category, 250);
+  const debouncedPriceRange = useDebouncedValue(priceRange, 250);
+  const debouncedRating = useDebouncedValue(selectedRating, 250);
+
+  const activeFilterCount = [debouncedCategory, debouncedPriceRange, debouncedRating ? "rating" : ""].filter(Boolean).length;
 
   useEffect(() => {
+    let ignore = false;
+
     async function fetchProducts() {
       setLoading(true);
-      const result = await searchProducts({
-        q: query,
-        category,
-        price: priceRange,
-        rating: selectedRating,
-      });
-      setProducts(result);
-      setLoading(false);
+      setError(null);
+
+      try {
+        const result = await searchProducts({
+          q: debouncedQuery,
+          category: debouncedCategory,
+          price: debouncedPriceRange,
+          rating: debouncedRating,
+        });
+
+        if (!ignore) {
+          setProducts((result as SearchProduct[]).map(normalizeProduct));
+        }
+      } catch {
+        if (!ignore) {
+          setProducts([]);
+          setError("Unable to load search results.");
+        }
+      } finally {
+        if (!ignore) setLoading(false);
+      }
     }
-    fetchProducts();
-  }, [query, category, priceRange, selectedRating]);
+
+    void fetchProducts();
+
+    return () => {
+      ignore = true;
+    };
+  }, [debouncedQuery, debouncedCategory, debouncedPriceRange, debouncedRating]);
+
+  const resultCopy = useMemo(() => {
+    if (loading) return "Searching the catalogue...";
+    if (!products.length) return "No products matched your current search.";
+    return `${products.length} product${products.length === 1 ? "" : "s"} found`;
+  }, [loading, products.length]);
+
+  const clearFilters = () => {
+    setCategory("");
+    setPriceRange("");
+    setSelectedRating(0);
+  };
 
   return (
-    <div className="min-h-[80vh] bg-gradient-to-br from-blue-50 to-white py-8 px-2 md:px-8">
-      <h1 className="text-3xl md:text-4xl font-extrabold mb-8 text-blue-900 text-center drop-shadow">Search Products</h1>
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Filter Sidebar */}
-        <aside className="w-full md:w-72 bg-white rounded-2xl shadow-xl p-6 mb-4 md:mb-0">
-          <h2 className="text-xl font-semibold mb-6 text-blue-700">Filters</h2>
-          <div className="mb-6">
-            <label htmlFor="category-filter" className="block font-medium mb-2 text-gray-700">Category</label>
-            <select
-              id="category-filter"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="">All</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+    <div className="search-results-page">
+      <div className="search-page-breadcrumb">
+        <Link href="/" className="wishlist-back-link">
+          <ArrowLeft className="size-4" />
+          Back to home
+        </Link>
+        <span>/</span>
+        <strong>Search</strong>
+      </div>
+
+      <section className="search-page-hero">
+        <div>
+          <p className="eyebrow">Search catalogue</p>
+          <h1>Find the right product without the noise.</h1>
+          <p>
+            Search, filter, and compare products with a calmer storefront view
+            built for quick decisions.
+          </p>
+        </div>
+
+        <Card className="search-insight-card py-0 shadow-none">
+          <CardContent className="search-insight-content">
+            <span>
+              <PackageSearch className="size-4" />
+              {resultCopy}
+            </span>
+            <span>
+              <ShieldCheck className="size-4" />
+              Secure products only
+            </span>
+          </CardContent>
+        </Card>
+      </section>
+
+      <Card className="search-command-card py-0 shadow-none">
+        <CardContent className="search-command-content">
+          <div className="search-page-input">
+            <Search className="size-4" />
+            <Input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search shirts, phones, books..."
+              aria-label="Search products"
+            />
+            {searchInput ? (
+              <button type="button" onClick={() => setSearchInput("")} aria-label="Clear search">
+                <X className="size-4" />
+              </button>
+            ) : null}
           </div>
-          <div className="mb-6">
-            <div className="font-medium mb-2 text-gray-700">Price</div>
-            {priceRanges.map((range) => (
-              <label key={range.value} className="block text-sm mb-1 cursor-pointer">
-                <input
-                  type="radio"
-                  name="price"
-                  value={range.value}
-                  checked={priceRange === range.value}
-                  onChange={() => setPriceRange(range.value)}
-                  className="mr-2 accent-blue-500"
-                />
-                {range.label}
-              </label>
-            ))}
-            <label className="block text-sm mt-1 cursor-pointer">
-              <input
-                type="radio"
-                name="price"
-                value=""
-                checked={priceRange === ""}
-                onChange={() => setPriceRange("")}
-                className="mr-2 accent-blue-500"
-              />
-              All
-            </label>
+
+          <div className="search-command-meta">
+            <span>
+              <SlidersHorizontal className="size-4" />
+              {activeFilterCount} filter(s)
+            </span>
+            <span>
+              <Sparkles className="size-4" />
+              Debounced search
+            </span>
           </div>
-          <div className="mb-6">
-            <div className="font-medium mb-2 text-gray-700">Rating</div>
-            {[4, 3, 2, 1].map((star) => (
-              <label key={star} className="block text-sm mb-1 cursor-pointer">
-                <input
-                  type="radio"
-                  name="rating"
-                  value={star}
-                  checked={selectedRating === star}
-                  onChange={() => setSelectedRating(star)}
-                  className="mr-2 accent-blue-500"
-                />
-                {star} stars & up
-              </label>
-            ))}
-            <label className="block text-sm mt-1 cursor-pointer">
-              <input
-                type="radio"
-                name="rating"
-                value={0}
-                checked={selectedRating === 0}
-                onChange={() => setSelectedRating(0)}
-                className="mr-2 accent-blue-500"
-              />
-              All
-            </label>
-          </div>
-        </aside>
-        {/* Product Grid */}
-        <section className="flex-1">
-          {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+        </CardContent>
+      </Card>
+
+      <section className="search-layout">
+        <Card className="search-filter-card py-0 shadow-none">
+          <CardContent className="search-filter-content">
+            <div className="search-filter-head">
+              <div>
+                <p className="eyebrow">Filters</p>
+                <h2>Refine results</h2>
+              </div>
+              <button type="button" onClick={clearFilters} disabled={!activeFilterCount}>
+                <RotateCcw className="size-4" />
+                Reset
+              </button>
             </div>
+
+            <label className="search-filter-field">
+              <span>
+                <Tag className="size-4" />
+                Category
+              </span>
+              <select value={category} onChange={(event) => setCategory(event.target.value)}>
+                <option value="">All categories</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="search-filter-group">
+              <span>
+                <Filter className="size-4" />
+                Price
+              </span>
+              <div className="search-choice-list">
+                <button
+                  type="button"
+                  className={!priceRange ? "is-active" : ""}
+                  onClick={() => setPriceRange("")}
+                >
+                  All prices
+                </button>
+                {priceRanges.map((range) => (
+                  <button
+                    key={range.value}
+                    type="button"
+                    className={priceRange === range.value ? "is-active" : ""}
+                    onClick={() => setPriceRange(range.value)}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="search-filter-group">
+              <span>
+                <Star className="size-4" />
+                Rating
+              </span>
+              <div className="search-choice-list">
+                {[0, 4, 3, 2, 1].map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    className={selectedRating === rating ? "is-active" : ""}
+                    onClick={() => setSelectedRating(rating)}
+                  >
+                    {rating === 0 ? "All ratings" : `${rating}+ stars`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <section className="search-results-section">
+          <div className="search-results-head">
+            <div>
+              <p className="eyebrow">Results</p>
+              <h2>{debouncedQuery ? `Search for "${debouncedQuery}"` : "Latest products"}</h2>
+            </div>
+            <span>
+              <BadgeCheck className="size-4" />
+              {resultCopy}
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="search-skeleton-grid">
+              {[1, 2, 3, 4, 5, 6].map((item) => (
+                <Card key={item} className="search-skeleton-card py-0 shadow-none">
+                  <CardContent>
+                    <span />
+                    <strong />
+                    <p />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : error ? (
+            <Card className="search-empty-card py-0 shadow-none">
+              <CardContent className="search-empty-content">
+                <PackageSearch className="size-10" />
+                <h2>{error}</h2>
+                <CtaButton type="button" onClick={() => setSearchInput(searchInput)}>
+                  Try again
+                </CtaButton>
+              </CardContent>
+            </Card>
           ) : products.length === 0 ? (
-            <div className="text-center text-gray-400 py-20 text-xl">No products found.</div>
+            <Card className="search-empty-card py-0 shadow-none">
+              <CardContent className="search-empty-content">
+                <PackageSearch className="size-10" />
+                <h2>No products found</h2>
+                <p>Try a broader search term or reset your filters.</p>
+                <CtaButton type="button" onClick={clearFilters}>
+                  Clear filters
+                </CtaButton>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            <div className="search-product-grid">
               {products.map((product) => (
-                <div key={product.slug || product.id} className="transition-transform hover:-translate-y-2 hover:shadow-2xl">
-                  <ProductCard product={product} />
-                </div>
+                <ProductCard key={product.slug || product.id} product={product} />
               ))}
             </div>
           )}
         </section>
-      </div>
+      </section>
     </div>
   );
 }
@@ -147,12 +384,12 @@ export default function SearchPage() {
   return (
     <>
       <SiteHeader />
-      <main className="search-page" style={{ background: "#f8fafb", minHeight: "80vh" }}>
-        <Suspense fallback={<div>Loading search results...</div>}>
+      <main className="search-page">
+        <Suspense fallback={<div className="search-page-loading">Loading search results...</div>}>
           <SearchResults />
         </Suspense>
       </main>
-        <SiteFooter />
-      </>
-    );
+      <SiteFooter />
+    </>
+  );
 }

@@ -48,7 +48,7 @@ model User {
   name         String
   email        String   @unique
   phone        String?
-  password     String?  // nullable → future OAuth support (Google, GitHub)
+  password     String?  
   role         Role     @default(USER)
   isBanned     Boolean  @default(false)
   image        String?
@@ -68,21 +68,20 @@ model User {
   orders        Order[]
   reviews       Review[]
   notifications Notification[]
-  wishlistedBy Wishlist[]
+   wishlistItems Wishlist[]  
 
-  @@index([email])   // fast login lookup
-  @@index([role])    // fast admin user list query
+  @@index([email])   
+  @@index([role])    
   @@schema("mini_e_commerce")
 }
 
-// Saved delivery addresses (reusable across orders)
 model Address {
   id        String  @id @default(cuid())
   label     String  @default("Home")  // "Home", "Office", "Other"
   fullName  String
   phone     String
   line1     String
-  line2     String? // apartment, floor, landmark
+  line2     String? 
   city      String
   state     String
   pincode   String
@@ -126,7 +125,7 @@ model Product {
   variants ProductVariant[]
   images   ProductImage[]
   reviews  Review[]
-  wishlistedBy Wishlist[]
+  wishlistedBy Wishlist[]  // Added Wishlist model
 
   @@index([categoryId])
   @@index([isActive])
@@ -281,17 +280,17 @@ model Notification {
 }
 
 model Wishlist {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
-  userId    String   @db.Text
-  productId String   @db.Text
-  createdAt DateTime @default(now()) @db.Timestamp(6)
+  id      String   @id @default(cuid())
+  addedAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, productId], name: "Wishlist_unique_user_product")
-  @@index([userId], name: "Wishlist_userId_idx")
-  @@index([productId], name: "Wishlist_productId_idx")
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
   @@schema("mini_e_commerce")
 }

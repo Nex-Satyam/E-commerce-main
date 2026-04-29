@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { HeaderActions } from "@/components/home/header-actions";
+import  HeaderActions  from "@/components/home/header-actions";
 import { SearchBar } from "@/components/home/search-bar";
 
 export function SiteHeader() {

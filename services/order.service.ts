@@ -4,6 +4,7 @@ export const getOrdersByUserId = async (userId: string) => {
     where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
+      address: true,
       items: {
         include: {
           variant: {
@@ -78,8 +79,10 @@ export const createOrder = async ({
     },
     include: {
       items: true,
+      address: true,
     },
   });
+  
 
   await prisma.cartItem.deleteMany({
     where: { userId },

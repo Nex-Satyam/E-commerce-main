@@ -1,37 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BadgeCheck,
+  CheckCircle2,
+  ChevronRight,
   Clock3,
   CreditCard,
   Gift,
+  IndianRupee,
+  Loader2,
+  LockKeyhole,
   MapPin,
   PackageCheck,
+  RotateCcw,
   ShieldCheck,
-  Sparkles,
+  Tag,
   Truck,
-  WalletCards,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useRef } from "react";
 
-import { CtaButton } from "@/components/home/cta-button";
 import axios from "@/lib/axios";
-import Image from "next/image";
-import { AddressForm } from "./address-form";
-
-import { PaymentForm } from "./payment-form";
+import { CtaButton } from "@/components/home/cta-button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-import { useToast } from "@/components/ui/toast-context";
-
-
-function parsePrice(price: string) {
-  return Number(price.replace(/[^\d.]/g, ""));
-}
+import { useCart } from "@/components/cart/cart-provider";
+import { AddressForm } from "./address-form";
+import { PaymentForm } from "./payment-form";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -40,63 +38,134 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+type DeliveryMethod = "standard" | "express";
+type PaymentMethod = "card" | "upi" | "cod";
+
+type CheckoutAddress = {
+  id: string;
+  fullName: string;
+  phone?: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state?: string;
+  pincode: string;
+  label?: string;
+  isDefault?: boolean;
+};
+
+type CartApiItem = {
+  id: string;
+  quantity: number;
+  variant: {
+    name?: string;
+    sku?: string;
+    price: number;
+    product: {
+      id: string;
+      name: string;
+      slug?: string;
+      images?: { url?: string }[];
+    };
+  };
+};
+
+type OrderDetails = {
+  id?: string;
+  totalAmount?: number;
+  status?: string;
+};
+
 export function CheckoutPageView() {
+  const router = useRouter();
+  const { refreshCart } = useCart();
+
   const [step, setStep] = useState(0);
-  const [deliveryMethod, setDeliveryMethod] = useState<"standard" | "express">("standard");
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "upi" | "cod">("card");
-  const [deliverySlot, setDeliverySlot] = useState("Tomorrow, 10 AM - 1 PM");
+  const [deliveryMethod, setDeliveryMethod] =
+    useState<DeliveryMethod>("standard");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [isPaymentValid, setIsPaymentValid] = useState(false);
+  const [deliverySlot, setDeliverySlot] = useState("Morning");
   const [giftWrap, setGiftWrap] = useState(true);
-  const [cartItems, setCartItems] = useState<any[]>([]);
+
+  const [cartItems, setCartItems] = useState<CartApiItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<CheckoutAddress[]>([]);
   const [addressId, setAddressId] = useState<string | null>(null);
   const [addressLoading, setAddressLoading] = useState(true);
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchAddresses = async (selectId?: string, moveNext = false) => {
+    setAddressLoading(true);
+
+    try {
+      const res = await axios.get("/address");
+      const addrs = res.data.addresses || [];
+
+      setAddresses(addrs);
+
+      if (selectId) {
+        setAddressId(selectId);
+      } else if (addrs.length > 0) {
+        const defaultAddr =
+          addrs.find((addr: CheckoutAddress) => addr.isDefault) || addrs[0];
+        setAddressId(defaultAddr.id);
+      } else {
+        setAddressId(null);
+      }
+
+      if (moveNext) setStep(1);
+    } catch {
+      setAddresses([]);
+      setAddressId(null);
+    } finally {
+      setAddressLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchCart = async () => {
       setLoading(true);
       setError(null);
+
       try {
         const res = await axios.get("/cart");
         setCartItems(res.data.cart || []);
-      } catch (err) {
+      } catch {
         setError("Failed to load cart items");
       } finally {
         setLoading(false);
       }
     };
+
     fetchCart();
   }, []);
 
   useEffect(() => {
-    const fetchAddresses = async () => {
-      setAddressLoading(true);
-      try {
-        const res = await axios.get("/address");
-        console.log("Fetched addresses:", res.data.addresses);
-        const addrs = res.data.addresses || [];
-        setAddresses(addrs);
-        if (addrs.length > 0) {
-          const defaultAddr = addrs.find((a: any) => a.isDefault) || addrs[0];
-          setAddressId(defaultAddr.id);
-        } else {
-          setAddressId(null);
-        }
-      } catch (err) {
-        setAddresses([]);
-        setAddressId(null);
-      } finally {
-        setAddressLoading(false);
-      }
+    const loadAddresses = async () => {
+      await fetchAddresses();
     };
-    fetchAddresses();
+
+    void loadAddresses();
   }, []);
 
-  const items = cartItems.map((cartItem: any) => {
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const items = cartItems.map((cartItem) => {
     const product = cartItem.variant.product;
     const quantity = cartItem.quantity;
     const unitPrice = cartItem.variant.price;
+
     return {
       ...cartItem,
       product: {
@@ -120,24 +189,27 @@ export function CheckoutPageView() {
   const giftWrapCharge = giftWrap ? 9 : 0;
   const tax = Number((subtotal * 0.08).toFixed(2));
   const total = subtotal + shipping + tax + giftWrapCharge;
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const savings = hasItems ? Math.max(0, subtotal * 0.05) : 0;
 
-  const deliveryOptions = useMemo(
-    () => [
-      {
-        id: "standard",
-        title: "Standard Delivery",
-        eta: "3-5 days",
-        price: baseShipping === 0 ? "Free" : formatCurrency(baseShipping),
-      },
-      {
-        id: "express",
-        title: "Express",
-        eta: "Next day",
-        price: formatCurrency(baseShipping + 18),
-      },
-    ],
-    [baseShipping]
-  );
+  const selectedAddress = addresses.find((addr) => addr.id === addressId);
+
+  const deliveryOptions = [
+    {
+      id: "standard" as const,
+      title: "Standard Delivery",
+      eta: "3-5 days",
+      price: baseShipping === 0 ? "Free" : formatCurrency(baseShipping),
+      badge: subtotal >= 180 ? "Free eligible" : "Best value",
+    },
+    {
+      id: "express" as const,
+      title: "Express Delivery",
+      eta: "Next day",
+      price: formatCurrency(baseShipping + 18),
+      badge: "Fastest",
+    },
+  ];
 
   const paymentOptions = [
     { id: "card", title: "Card", copy: "Visa, Mastercard" },
@@ -145,165 +217,286 @@ export function CheckoutPageView() {
     { id: "cod", title: "Cash on Delivery", copy: "Pay at home" },
   ] as const;
 
-  const router = useRouter();
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [orderDetails, setOrderDetails] = useState<any>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const handlePlaceOrder = async () => {
     if (!addressId) {
-      alert("No address selected");
+      alert("Please select a delivery address.");
       return;
     }
+
+    if (!hasItems) {
+      alert("Your cart is empty.");
+      return;
+    }
+
+    if (!isPaymentValid) {
+      alert("Please complete valid payment details before placing the order.");
+      return;
+    }
+
+    setPlacingOrder(true);
+
     try {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ addressId }),
       });
+
       const data = await res.json();
 
       if (data.success) {
         setOrderDetails(data.order || {});
         setShowSuccessModal(true);
-        // Auto-close modal and redirect after 3 seconds
+        await refreshCart();
+
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
         timeoutRef.current = setTimeout(() => {
           setShowSuccessModal(false);
           router.push("/");
         }, 3000);
       } else {
-        alert("Failed to place order");
+        alert(data.error || "Failed to place order");
       }
     } catch (err) {
       console.error(err);
       alert("Something went wrong");
+    } finally {
+      setPlacingOrder(false);
     }
   };
 
   return (
     <main className="checkout-page">
       {showSuccessModal && (
-        <div className="modal-backdrop" style={{position: "fixed", top:0, left:0, width:"100vw", height:"100vh", background:"rgba(0,0,0,0.3)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center"}}>
-          <div className="modal-content" style={{background:"#fff", borderRadius:8, padding:32, minWidth:320, boxShadow:"0 2px 16px rgba(0,0,0,0.15)"}}>
-            <h2 style={{marginBottom:12}}>Order Placed Successfully!</h2>
-            <div style={{marginBottom:8}}>
-              <b>Order ID:</b> {orderDetails?.id || "-"}
+        <div className="checkout-modal-backdrop">
+          <div className="checkout-success-modal">
+            <div className="checkout-success-icon">
+              <BadgeCheck />
             </div>
-            <div style={{marginBottom:8}}>
-              <b>Total:</b> {orderDetails?.totalAmount ? formatCurrency(orderDetails.totalAmount / 100) : "-"}
+
+            <h2>Order Placed Successfully!</h2>
+            <p>Your order has been confirmed and is being prepared.</p>
+
+            <div className="checkout-success-details">
+              <span>Order ID</span>
+              <strong>{orderDetails?.id || "-"}</strong>
+
+              <span>Total Paid</span>
+              <strong>
+                {orderDetails?.totalAmount
+                  ? formatCurrency(orderDetails.totalAmount / 100)
+                  : formatCurrency(total)}
+              </strong>
+
+              <span>Status</span>
+              <strong>{orderDetails?.status || "Confirmed"}</strong>
             </div>
-            <div style={{marginBottom:8}}>
-              <b>Status:</b> {orderDetails?.status || "-"}
-            </div>
-            <div style={{marginTop:16, color:"#888"}}>Redirecting to home...</div>
+
+            <small>Redirecting to home...</small>
           </div>
         </div>
       )}
+
       <div className="checkout-breadcrumb">
-        <Link href="/cart">
-          <ArrowLeft /> Back
+        <Link href="/cart" className="checkout-back-link">
+          <ArrowLeft className="size-4" />
+          Back to cart
         </Link>
+        <ChevronRight className="size-4" />
+        <span>Checkout</span>
+      </div>
+
+      <section className="checkout-head">
+        <div>
+          <p className="eyebrow">Secure checkout</p>
+          <h1>Review and place your order</h1>
+          <p>
+            Confirm your delivery address, shipping speed, payment method, and
+            final price before checkout.
+          </p>
+        </div>
+
+        <div className="checkout-head-panel">
+          <span>
+            <ShieldCheck className="size-4" />
+            Bank-grade payment security
+          </span>
+          <span>
+            <RotateCcw className="size-4" />
+            7 day return window
+          </span>
+        </div>
+      </section>
+
+      <div className="checkout-trust-bar">
+        <span>
+          <PackageCheck className="size-4" />
+          {itemCount || 0} item(s) ready
+        </span>
+        <span>
+          <Truck className="size-4" />
+          Delivery slot: {deliverySlot}
+        </span>
+        <span>
+          <IndianRupee className="size-4" />
+          Pay securely at checkout
+        </span>
+        <span>
+          <Tag className="size-4" />
+          Offers applied in summary
+        </span>
+      </div>
+
+      <div className="checkout-reassurance-strip">
+        <span>
+          <LockKeyhole className="size-4" />
+          Encrypted payment session
+        </span>
+        <span>
+          <BadgeCheck className="size-4" />
+          Stock reserved after order confirmation
+        </span>
+        <span>
+          <Clock3 className="size-4" />
+          Estimated packing within 24 hours
+        </span>
       </div>
 
       <div className="checkout-stepper">
-        {["Address", "Payment"].map((label, idx) => (
-          <div key={label} className={`step ${step === idx ? "active" : step > idx ? "done" : ""}`}>
-            <div>{idx + 1}</div>
-            <span>{label}</span>
-          </div>
-        ))}
+        {[
+          { label: "Address", icon: MapPin, done: Boolean(addressId) },
+          { label: "Delivery", icon: Truck, done: true },
+          { label: "Payment", icon: CreditCard, done: step > 1 },
+        ].map((item, idx) => {
+          const Icon = item.icon;
+          const isActive =
+            idx === 0 ? step === 0 : idx === 2 ? step === 1 : false;
+          const isDone = item.done && !isActive;
+
+          return (
+            <div
+              key={item.label}
+              className={`checkout-step ${
+                isActive ? "active" : isDone ? "done" : ""
+              }`}
+            >
+              <div>
+                {isDone ? <CheckCircle2 className="size-4" /> : idx + 1}
+              </div>
+              <span>
+                <Icon className="size-4" />
+                {item.label}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <section className="checkout-layout">
-        <div>
-
+        <div className="checkout-main">
           {step === 0 && (
             <>
               {addressLoading ? (
-                <div>Loading addresses...</div>
+                <Card className="checkout-card py-0 shadow-none">
+                  <CardContent className="checkout-card-content">
+                    <div className="checkout-loading-state">
+                      <Loader2 className="size-5 animate-spin" />
+                      Loading addresses...
+                    </div>
+                  </CardContent>
+                </Card>
               ) : addresses.length === 0 ? (
                 <AddressForm
                   onComplete={async (id?: string) => {
-                    if (id) {
-                      setAddressLoading(true);
-                      // Refetch addresses and select the new one
-                      try {
-                        const res = await axios.get("/address");
-                        const addrs = res.data.addresses || [];
-                        setAddresses(addrs);
-                        setAddressId(id);
-                        setStep(1);
-                      } finally {
-                        setAddressLoading(false);
-                      }
-                    }
+                    await fetchAddresses(id, true);
                   }}
                 />
               ) : (
-                <div>
-                  <h3>Select Delivery Address</h3>
-                  <div style={{marginBottom: 16}}>
-                    {addresses.map((addr) => (
-                      <label key={addr.id} style={{ display: "block", marginBottom: 8, cursor: "pointer" }}>
-                        <input
-                          type="radio"
-                          name="address"
-                          value={addr.id}
-                          checked={addressId === addr.id}
-                          onChange={() => {
-                            setAddressId(addr.id);
-                          }}
-                          style={{marginRight: 8}}
-                        />
-                        <span>
-                          <b>{addr.label}</b>: {addr.fullName}, {addr.line1}, {addr.city}, {addr.state}, {addr.pincode} {addr.isDefault ? "(Default)" : ""}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  <button
-                    className="checkout-summary-button checkout-summary-button-primary"
-                    disabled={!addressId}
-                    style={{ marginTop: 12 }}
-                    onClick={() => {
-                      if (addressId && addresses.some(a => a.id === addressId)) {
-                        setStep(1);
-                      } else {
-                        alert("Please select an address to continue.");
-                      }
-                    }}
-                  >
-                    Continue to Payment
-                  </button>
-                  <div style={{ marginTop: 16 }}>
-                    <AddressForm
-                      onComplete={async (id?: string) => {
-                        if (id) {
-                          setAddressLoading(true);
-                          try {
-                            const res = await axios.get("/address");
-                            const addrs = res.data.addresses || [];
-                            setAddresses(addrs);
-                            setAddressId(id);
-                            setStep(1);
-                          } finally {
-                            setAddressLoading(false);
-                          }
-                        }
+                <Card className="checkout-card py-0 shadow-none">
+                  <CardContent className="checkout-card-content">
+                    <div className="checkout-section-head">
+                      <div className="checkout-section-icon">
+                        <MapPin className="size-4" />
+                      </div>
+                      <div>
+                        <span className="checkout-section-label">Step 1</span>
+                        <h2>Select Delivery Address</h2>
+                        <p>Choose where this order should be delivered.</p>
+                      </div>
+                    </div>
+
+                    <div className="checkout-address-list">
+                      {addresses.map((addr) => (
+                        <label
+                          key={addr.id}
+                          className={`checkout-address-card ${
+                            addressId === addr.id ? "is-active" : ""
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="address"
+                            value={addr.id}
+                            checked={addressId === addr.id}
+                            onChange={() => setAddressId(addr.id)}
+                          />
+
+                          <div>
+                            <strong className="checkout-address-title">
+                              <span>{addr.label || "Home"}</span>
+                              {addr.isDefault ? (
+                                <span className="checkout-default-badge">
+                                  Default
+                                </span>
+                              ) : null}
+                            </strong>
+
+                            <span>
+                              {addr.fullName}, {addr.line1}, {addr.city},{" "}
+                              {addr.state}, {addr.pincode}
+                            </span>
+
+                            {addr.phone ? <small>{addr.phone}</small> : null}
+                          </div>
+                        </label>
+                        ))}
+                    </div>
+
+                    <Button
+                      type="button"
+                      className="checkout-primary-action"
+                      disabled={!addressId}
+                      onClick={() => {
+                        if (addressId) setStep(1);
                       }}
-                    />
-                  </div>
-                </div>
+                    >
+                      Deliver to this address
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {addresses.length > 0 && !addressLoading && (
+                <AddressForm
+                  onComplete={async (id?: string) => {
+                    await fetchAddresses(id, true);
+                  }}
+                />
               )}
             </>
           )}
 
           {step === 1 && (
             <>
-              <button onClick={() => setStep(0)} style={{ marginBottom: 10 }}>
-                ← Back to Address
-              </button>
+              <Button
+                type="button"
+                className="checkout-back-mini"
+                onClick={() => setStep(0)}
+              >
+                <ArrowLeft className="size-4" />
+                Back to Address
+              </Button>
 
               <PaymentForm
                 paymentMethod={paymentMethod}
@@ -312,38 +505,110 @@ export function CheckoutPageView() {
                 giftWrap={giftWrap}
                 setGiftWrap={setGiftWrap}
                 paymentOptions={[...paymentOptions]}
+                onValidationChange={setIsPaymentValid}
               />
             </>
           )}
 
-          <Card>
-            <CardContent>
-              <h2>Delivery</h2>
+          <Card className="checkout-card py-0 shadow-none checkout-delivery-card">
+            <CardContent className="checkout-card-content">
+              <div className="checkout-section-head">
+                <div className="checkout-section-icon">
+                  <Truck className="size-4" />
+                </div>
+                <div>
+                  <span className="checkout-section-label">Delivery</span>
+                  <h2>Delivery Preferences</h2>
+                  <p>Choose shipping speed and a convenient delivery window.</p>
+                </div>
+              </div>
 
-              {deliveryOptions.map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => setDeliveryMethod(opt.id as any)}
-                >
-                  {opt.title} - {opt.price}
-                </button>
-              ))}
+              <div className="checkout-option-grid">
+                {deliveryOptions.map((opt) => (
+                  <button
+                    type="button"
+                    key={opt.id}
+                    onClick={() => setDeliveryMethod(opt.id)}
+                    className={`checkout-choice-card ${
+                      deliveryMethod === opt.id ? "is-active" : ""
+                    }`}
+                  >
+                    <div>
+                      <span className="checkout-choice-badge">{opt.badge}</span>
+                      <strong>{opt.title}</strong>
+                      <span>{opt.eta}</span>
+                    </div>
+                    <b>{opt.price}</b>
+                  </button>
+                ))}
+              </div>
 
-              {["Morning", "Afternoon", "Evening"].map((slot) => (
-                <button key={slot} onClick={() => setDeliverySlot(slot)}>
-                  {slot}
-                </button>
-              ))}
+              <div className="checkout-slot-row">
+                {["Morning", "Afternoon", "Evening"].map((slot) => (
+                  <button
+                    type="button"
+                    key={slot}
+                    onClick={() => setDeliverySlot(slot)}
+                    className={`checkout-slot-chip ${
+                      deliverySlot === slot ? "is-active" : ""
+                    }`}
+                  >
+                    <Clock3 className="size-4" />
+                    {slot}
+                  </button>
+                ))}
+              </div>
             </CardContent>
           </Card>
+
+          <div className="checkout-feature-grid">
+            <div className="checkout-feature-card">
+              <ShieldCheck className="size-5" />
+              <strong>Protected checkout</strong>
+              <span>Secure payment processing for every order.</span>
+            </div>
+            <div className="checkout-feature-card">
+              <PackageCheck className="size-5" />
+              <strong>Quality checked</strong>
+              <span>Items are verified before dispatch.</span>
+            </div>
+            <div className="checkout-feature-card">
+              <Gift className="size-5" />
+              <strong>Gift-ready</strong>
+              <span>Add premium wrap from payment options.</span>
+            </div>
+          </div>
         </div>
 
-        <aside>
+        <aside className="checkout-summary">
           <Card className="checkout-summary-card py-0 shadow-none">
             <CardContent className="checkout-summary-content">
-              <h2 className="checkout-summary-title">Order Summary</h2>
+              <div className="checkout-summary-hero">
+                <div>
+                  <span className="checkout-summary-kicker">Order Summary</span>
+                  <strong>{itemCount} item(s)</strong>
+                </div>
+                <span className="checkout-summary-badge">
+                  <ShieldCheck className="size-4" />
+                  Secure
+                </span>
+              </div>
+
+              {selectedAddress && (
+                <div className="checkout-selected-address">
+                  <MapPin className="size-4" />
+                  <span>
+                    Delivering to <strong>{selectedAddress.fullName}</strong>,{" "}
+                    {selectedAddress.city}
+                  </span>
+                </div>
+              )}
+
               {loading ? (
-                <div className="checkout-summary-loading">Loading cart...</div>
+                <div className="checkout-summary-loading">
+                  <Loader2 className="size-5 animate-spin" />
+                  Loading cart...
+                </div>
               ) : error ? (
                 <div className="checkout-summary-error">{error}</div>
               ) : !hasItems ? (
@@ -357,22 +622,28 @@ export function CheckoutPageView() {
                           <Image
                             src={item.product.image || "/placeholder.png"}
                             alt={item.product.name}
-                            width={60}
-                            height={60}
+                            width={70}
+                            height={70}
                             className="checkout-summary-img"
                           />
                         </div>
+
                         <div className="checkout-summary-info">
                           <strong>{item.product.name}</strong>
                           <span>Qty: {item.quantity}</span>
                           <span>Size: {item.size}</span>
                           <span>SKU: {item.product.sku}</span>
                         </div>
-                        <div className="checkout-summary-price">{formatCurrency(item.totalPrice)}</div>
+
+                        <div className="checkout-summary-price">
+                          {formatCurrency(item.totalPrice)}
+                        </div>
                       </div>
                     ))}
                   </div>
+
                   <hr className="checkout-summary-divider" />
+
                   <div className="checkout-summary-lines">
                     <div>
                       <span>Subtotal</span>
@@ -380,37 +651,89 @@ export function CheckoutPageView() {
                     </div>
                     <div>
                       <span>Shipping</span>
-                      <strong>{shipping === 0 ? "Free" : formatCurrency(shipping)}</strong>
+                      <strong>
+                        {shipping === 0 ? "Free" : formatCurrency(shipping)}
+                      </strong>
                     </div>
                     <div>
                       <span>Gift Wrap</span>
-                      <strong>{giftWrap ? formatCurrency(giftWrapCharge) : "No"}</strong>
+                      <strong>
+                        {giftWrap ? formatCurrency(giftWrapCharge) : "No"}
+                      </strong>
                     </div>
                     <div>
                       <span>Estimated Tax</span>
                       <strong>{formatCurrency(tax)}</strong>
                     </div>
+                    <div className="checkout-savings-line">
+                      <span>Estimated Savings</span>
+                      <strong>{formatCurrency(savings)}</strong>
+                    </div>
                   </div>
+
                   <div className="checkout-summary-total">
                     <span>Total</span>
                     <strong>{formatCurrency(total)}</strong>
                   </div>
+
+                  <div className="checkout-mini-timeline">
+                    {[
+                      "Order confirmed",
+                      "Quality check",
+                      "Dispatch update",
+                    ].map((item, index) => (
+                      <span key={item}>
+                        <b>{index + 1}</b>
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+
                   <div className="checkout-summary-actions">
                     {step === 0 ? (
-                      <CtaButton
-                        className="checkout-summary-button checkout-summary-button-primary"
+                      <Button
+                        type="button"
+                        className="checkout-primary-action"
                         onClick={() => alert("Please complete address first")}
                       >
                         Complete Address First
-                      </CtaButton>
+                      </Button>
                     ) : (
-                      <CtaButton className="checkout-summary-button checkout-summary-button-primary" onClick={handlePlaceOrder}>
-                        Place Order
-                      </CtaButton>
+                      <Button
+                        type="button"
+                        className="checkout-primary-action"
+                        onClick={handlePlaceOrder}
+                        disabled={placingOrder}
+                      >
+                        {placingOrder ? (
+                          <>
+                            <Loader2 className="size-4 animate-spin" />
+                            Placing Order...
+                          </>
+                        ) : (
+                          "Place Order"
+                        )}
+                      </Button>
                     )}
+
                     <CtaButton tone="light" asChild className="checkout-summary-button">
                       <Link href="/cart">Edit Cart</Link>
                     </CtaButton>
+                  </div>
+
+                  <div className="checkout-summary-notes">
+                    <span>
+                      <ShieldCheck className="size-4" />
+                      100% secure checkout
+                    </span>
+                    <span>
+                      <Truck className="size-4" />
+                      Delivery updates after order confirmation
+                    </span>
+                    <span>
+                      <BadgeCheck className="size-4" />
+                      You saved {formatCurrency(savings)} on this order
+                    </span>
                   </div>
                 </>
               )}

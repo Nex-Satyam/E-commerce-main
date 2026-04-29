@@ -1,137 +1,293 @@
+"use client";
+
 import Link from "next/link";
-import { Mail, Phone, ArrowUpRight } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  ArrowUpRight,
+  BadgeCheck,
+  Clock3,
+  Headphones,
+  Mail,
+  MapPin,
+  MessageCircle,
+  PackageCheck,
+  Phone,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Truck,
+} from "lucide-react";
 
 import {
+  footerLinks,
   footerSections,
   socialLinks,
 } from "@/components/home/home-data";
-
+import { CtaButton } from "@/components/home/cta-button";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+
+const newsletterSchema = z.object({
+  email: z.string().trim().min(1, "Email is required.").email("Enter a valid email address."),
+});
+
+type NewsletterValues = z.infer<typeof newsletterSchema>;
 
 function isInternalLink(href: string) {
-  return href.startsWith("/") && !href.startsWith("mailto:") && !href.startsWith("tel:");
+  return (
+    href.startsWith("/") && !href.startsWith("mailto:") && !href.startsWith("tel:")
+  );
 }
 
+const serviceItems = [
+  {
+    icon: Truck,
+    title: "Fast dispatch",
+    copy: "Priority packing for ready-to-ship edits.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Secure checkout",
+    copy: "Protected payments and private order handling.",
+  },
+  {
+    icon: PackageCheck,
+    title: "Quality checked",
+    copy: "Every piece is inspected before it leaves us.",
+  },
+  {
+    icon: Headphones,
+    title: "Client care",
+    copy: "Sizing, delivery, and styling help when needed.",
+  },
+];
+
+const tickerItems = [
+  "New silhouettes every week",
+  "Monochrome essentials",
+  "Tailored in limited runs",
+  "Client care from New Delhi",
+  "Secure checkout",
+  "7 day return support",
+];
+
 export function SiteFooter() {
+  const tickerLoop = [...tickerItems, ...tickerItems];
+  const [subscribedEmail, setSubscribedEmail] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<NewsletterValues>({
+    resolver: zodResolver(newsletterSchema),
+    mode: "onBlur",
+    defaultValues: {
+      email: "",
+    },
+  });
+
+  const handleNewsletterSubmit = (values: NewsletterValues) => {
+    setSubscribedEmail(values.email);
+    reset();
+  };
+
   return (
-    <footer
-      id="footer"
-      className="bg-[#2C2C2A] text-white"
-    >
-      <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
-        {/* Top Section */}
-        <div className="grid gap-12 lg:grid-cols-4 border-b border-white/10 pb-12">
-          {/* Brand */}
-          <div className="lg:col-span-1">
-            <Link href="/" className="text-2xl font-bold tracking-tight text-white">
-              ASR
-            </Link>
-
-            <p className="mt-4 text-sm leading-7 text-white/70">
-              Premium essentials crafted for modern wardrobes. Clean silhouettes,
-              elevated basics, and timeless style.
-            </p>
-
-            <div className="mt-6 space-y-3 text-sm text-white/70">
-              <a
-                href="mailto:hello@nexgen.com"
-                className="flex items-center gap-2 hover:text-[#EF9F27]"
-              >
-                <Mail size={16} />
-                hello@nexgen.com
-              </a>
-
-              <a
-                href="tel:+919876543210"
-                className="flex items-center gap-2 hover:text-[#EF9F27]"
-              >
-                <Phone size={16} />
-                +91 98765 43210
-              </a>
-            </div>
-          </div>
-
-          {/* Footer Links */}
-          {footerSections.map((section) => (
-            <div key={section.title}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-white">
-                {section.title}
-              </h3>
-
-              <div className="mt-4 space-y-3">
-                {section.links.map((link) =>
-                  isInternalLink(link.href) ? (
-                    <Link
-                      key={link.label}
-                      href={link.href}
-                      className="block text-sm text-white/70 hover:text-[#EF9F27]"
-                    >
-                      {link.label}
-                    </Link>
-                  ) : (
-                    <a
-                      key={link.label}
-                      href={link.href}
-                      className="block text-sm text-white/70 hover:text-[#EF9F27]"
-                    >
-                      {link.label}
-                    </a>
-                  )
-                )}
-              </div>
-            </div>
+    <footer className="site-footer" id="footer">
+      <div className="footer-marquee" aria-label="Atelier highlights">
+        <div className="footer-marquee-track">
+          {tickerLoop.map((item, index) => (
+            <span key={`${item}-${index}`}>
+              <Sparkles className="size-4" />
+              {item}
+            </span>
           ))}
         </div>
+      </div>
 
-        {/* Newsletter */}
-        <div className="grid gap-8 border-b border-white/10 py-10 lg:grid-cols-2 lg:items-center">
-          <div>
-            <h3 className="text-xl font-semibold text-white">
-              Join Our Newsletter
-            </h3>
-            <p className="mt-2 text-sm text-white/70">
-              Get updates on new arrivals, exclusive offers, and product drops.
-            </p>
+      <div className="footer-hero-row">
+        <div className="footer-brand-panel">
+          <div className="footer-minimal-brand">
+            <div className="footer-brand-mark">
+              <span>ASR</span>
+            </div>
+            <div className="footer-brand-copy">
+              <p className="eyebrow">Offwhite Atelier</p>
+              <h2>Quiet essentials, shaped for modern wardrobes.</h2>
+              <p className="footer-brand-description">
+                A monochrome-first studio for refined everyday dressing,
+                considered fits, and pieces that stay useful beyond the season.
+              </p>
+            </div>
           </div>
 
-          <form className="flex flex-col gap-3 sm:flex-row">
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              className="h-11 border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:border-[#185FA5]"
-            />
-            <Button className="h-11 bg-[#185FA5] px-6 text-white hover:bg-[#154f89]">
-              Subscribe
-            </Button>
-          </form>
+          <div className="footer-service-grid">
+            {serviceItems.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div key={item.title} className="footer-service-card">
+                  <span className="footer-service-icon">
+                    <Icon className="size-4" />
+                  </span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{item.copy}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="flex flex-col gap-6 pt-8 text-sm text-white/60 lg:flex-row lg:items-center lg:justify-between">
-          <p>© 2026 ASR. All rights reserved.</p>
+        <div className="footer-highlight-card">
+          <div className="footer-card-kicker">
+            <BadgeCheck className="size-4" />
+            Private client desk
+          </div>
+          <h3>Get early access, styling notes, and delivery support.</h3>
+          <p>
+            Join the atelier list for new drop alerts, size guidance, occasion
+            edits, and quieter wardrobe ideas.
+          </p>
 
-          <div className="flex flex-wrap items-center gap-5">
+          <form
+            className="footer-subscribe-form"
+            onSubmit={handleSubmit(handleNewsletterSubmit)}
+            noValidate
+          >
+            <div className="footer-input-shell">
+              <Mail className="size-4" />
+              <Input
+                {...register("email")}
+                type="email"
+                placeholder="Email address"
+                className="footer-subscribe-input"
+                aria-invalid={Boolean(errors.email)}
+              />
+            </div>
+            <CtaButton type="submit" className="footer-subscribe-button">
+              <span>
+                Join <Send className="size-4" />
+              </span>
+            </CtaButton>
+            {errors.email && (
+              <small className="form-error footer-form-message">
+                {errors.email.message}
+              </small>
+            )}
+            {subscribedEmail && !errors.email && (
+              <small className="form-success footer-form-message">
+                Added {subscribedEmail} to the atelier list.
+              </small>
+            )}
+          </form>
+
+          <div className="footer-contact-row">
+            <a
+              className="footer-contact-pill"
+              href="mailto:hello@offwhiteatelier.com"
+            >
+              <Mail className="size-4" /> Email us
+            </a>
+            <a className="footer-contact-pill" href="tel:+919876543210">
+              <Phone className="size-4" /> Call studio
+            </a>
+            <a className="footer-contact-pill" href="#footer">
+              <MessageCircle className="size-4" /> Styling help
+            </a>
+          </div>
+
+          <div className="footer-highlight-meta">
+            <span>
+              <Clock3 className="size-4" /> Mon to Sat, 10:00 AM to 8:00 PM
+            </span>
+            <span>
+              <MapPin className="size-4" /> New Delhi studio appointments
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="footer-link-grid">
+        {footerSections.map((section) => (
+          <div key={section.title} className="footer-link-column">
+            <p className="footer-link-column-title">{section.title}</p>
+            <div className="footer-link-list">
+              {section.links.map((link) =>
+                isInternalLink(link.href) ? (
+                  <Link key={link.label} href={link.href}>
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a key={link.label} href={link.href}>
+                    {link.label}
+                  </a>
+                ),
+              )}
+            </div>
+          </div>
+        ))}
+
+        <div className="footer-link-column footer-link-column-wide">
+          <p className="footer-link-column-title">Atelier Notes</p>
+          <div className="footer-note-card">
+            <p>
+              Minimal dressing notes, product care reminders, and early access
+              links curated for repeat wear.
+            </p>
+            <div className="footer-minimal-links">
+              {footerLinks.slice(0, 3).map((link) =>
+                isInternalLink(link.href) ? (
+                  <Link key={link.href} href={link.href}>
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a key={link.href} href={link.href}>
+                    {link.label}
+                  </a>
+                ),
+              )}
+            </div>
+            <div className="footer-note-grid">
+              <div className="footer-note-pill">
+                <span>Appointments</span>
+                <strong>Private studio visits available</strong>
+              </div>
+              <div className="footer-note-pill">
+                <span>Shipping</span>
+                <strong>Complimentary over Rs. 120</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="footer-minimal-bottom">
+        <div className="footer-meta-inline">
+          <p>Copyright 2026 ASR Offwhite Atelier</p>
+          <span>New Delhi, India</span>
+          <span>Designed for quiet daily wear</span>
+        </div>
+
+        <div className="footer-actions-inline">
+          <div className="footer-inline-links">
             {socialLinks.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
                 target="_blank"
                 rel="noreferrer"
-                className="hover:text-[#EF9F27]"
               >
                 {link.label}
               </a>
             ))}
-
-            <a
-              href="#top"
-              className="inline-flex items-center gap-1 hover:text-[#EF9F27]"
-            >
-              Back to top
-              <ArrowUpRight size={14} />
-            </a>
           </div>
+          <a className="footer-back-top" href="#slider">
+            Back to top <ArrowUpRight className="size-4" />
+          </a>
         </div>
       </div>
     </footer>
