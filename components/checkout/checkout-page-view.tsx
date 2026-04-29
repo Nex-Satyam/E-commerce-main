@@ -275,7 +275,7 @@ export function CheckoutPageView() {
               <BadgeCheck />
             </div>
 
-            <h2>Order Placed Successfully!</h2>
+            <h2>Order Placed Successfully</h2>
             <p>Your order has been confirmed and is being prepared.</p>
 
             <div className="checkout-success-details">
