@@ -3,9 +3,8 @@ import { Playfair_Display, Manrope, Geist } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import ClientLayout from "@/components/ClientLayout";
-import { AuthProvider } from "@/components/auth/auth-provider";
-import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
 import ClientProviders  from "@/components/auth/client-providers";
+import Script from "next/script";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -30,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased">
         <ClientProviders>
           <ClientLayout>{children}</ClientLayout>
+          <Script src="https://checkout.razorpay.com/v1/checkout.js" />
         </ClientProviders>
       </body>
     </html>

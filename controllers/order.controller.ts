@@ -192,7 +192,7 @@ export async function handleCheckout(req: NextRequest) {
     const userId = session.user.id;
 
     const body = await req.json();
-    const { addressId } = body;
+    const { addressId, deliveryMethod, giftWrap } = body;
 
     if (!addressId) {
       return NextResponse.json(
@@ -202,7 +202,12 @@ export async function handleCheckout(req: NextRequest) {
     }
 
 
-    const order = await createOrder({ userId, addressId });
+    const order = await createOrder({
+      userId,
+      addressId,
+      deliveryMethod,
+      giftWrap,
+    });
 
     try {
       await sendEmail({

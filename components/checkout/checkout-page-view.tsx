@@ -38,6 +38,10 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function formatCurrencyFromPaise(value: number) {
+  return formatCurrency(value / 100);
+}
+
 type DeliveryMethod = "standard" | "express";
 type PaymentMethod = "card" | "upi" | "cod";
 
@@ -76,6 +80,51 @@ type OrderDetails = {
   status?: string;
 };
 
+type RazorpayPaymentResponse = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayOrderResponse = {
+  success?: boolean;
+  keyId?: string;
+  order?: {
+    id: string;
+    amount: number;
+    currency: string;
+  };
+  error?: string;
+};
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill?: {
+    name?: string;
+    contact?: string;
+  };
+  handler: (response: RazorpayPaymentResponse) => void | Promise<void>;
+  modal?: {
+    ondismiss?: () => void;
+  };
+  theme?: {
+    color: string;
+  };
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => {
+      open: () => void;
+    };
+  }
+}
+
 export function CheckoutPageView() {
   const router = useRouter();
   const { refreshCart } = useCart();
@@ -84,7 +133,6 @@ export function CheckoutPageView() {
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("standard");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
-  const [isPaymentValid, setIsPaymentValid] = useState(false);
   const [deliverySlot, setDeliverySlot] = useState("Morning");
   const [giftWrap, setGiftWrap] = useState(true);
 
@@ -184,10 +232,10 @@ export function CheckoutPageView() {
 
   const hasItems = items.length > 0;
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  const baseShipping = subtotal >= 180 ? 0 : 12;
-  const shipping = deliveryMethod === "express" ? baseShipping + 18 : baseShipping;
-  const giftWrapCharge = giftWrap ? 9 : 0;
-  const tax = Number((subtotal * 0.08).toFixed(2));
+  const baseShipping = subtotal >= 18000 ? 0 : 1200;
+  const shipping = deliveryMethod === "express" ? baseShipping + 1800 : baseShipping;
+  const giftWrapCharge = giftWrap ? 900 : 0;
+  const tax = Math.round(subtotal * 0.08);
   const total = subtotal + shipping + tax + giftWrapCharge;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const savings = hasItems ? Math.max(0, subtotal * 0.05) : 0;
@@ -199,14 +247,14 @@ export function CheckoutPageView() {
       id: "standard" as const,
       title: "Standard Delivery",
       eta: "3-5 days",
-      price: baseShipping === 0 ? "Free" : formatCurrency(baseShipping),
-      badge: subtotal >= 180 ? "Free eligible" : "Best value",
+      price: baseShipping === 0 ? "Free" : formatCurrencyFromPaise(baseShipping),
+      badge: subtotal >= 18000 ? "Free eligible" : "Best value",
     },
     {
       id: "express" as const,
       title: "Express Delivery",
       eta: "Next day",
-      price: formatCurrency(baseShipping + 18),
+      price: formatCurrencyFromPaise(baseShipping + 1800),
       badge: "Fastest",
     },
   ];
@@ -216,6 +264,38 @@ export function CheckoutPageView() {
     { id: "upi", title: "UPI", copy: "Google Pay, PhonePe" },
     { id: "cod", title: "Cash on Delivery", copy: "Pay at home" },
   ] as const;
+
+  const completeOrder = async (paymentId?: string) => {
+    const finalOrderRes = await axios.post(
+      "/order",
+      { addressId, deliveryMethod, giftWrap },
+      paymentId
+        ? {
+            headers: {
+              "X-Payment-Id": paymentId,
+            },
+          }
+        : undefined
+    );
+
+    const finalOrderData = finalOrderRes.data;
+
+    if (!finalOrderData.success) {
+      alert(finalOrderData.error || "Failed to place order");
+      return;
+    }
+
+    setOrderDetails(finalOrderData.order || {});
+    setShowSuccessModal(true);
+    await refreshCart();
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    timeoutRef.current = setTimeout(() => {
+      setShowSuccessModal(false);
+      router.push("/");
+    }, 3000);
+  };
 
   const handlePlaceOrder = async () => {
     if (!addressId) {
@@ -228,39 +308,67 @@ export function CheckoutPageView() {
       return;
     }
 
-    if (!isPaymentValid) {
-      alert("Please complete valid payment details before placing the order.");
-      return;
-    }
-
     setPlacingOrder(true);
 
     try {
-      const res = await fetch("/api/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ addressId }),
+      if (paymentMethod === "cod") {
+        await completeOrder();
+        return;
+      }
+
+      if (!window.Razorpay) {
+        alert("Payment gateway is still loading. Please try again in a moment.");
+        return;
+      }
+
+      const orderRes = await axios.post<RazorpayOrderResponse>("/payment/create-order", {
+        deliveryMethod,
+        giftWrap,
       });
 
-      const data = await res.json();
+      const orderData = orderRes.data;
 
-      if (data.success) {
-        setOrderDetails(data.order || {});
-        setShowSuccessModal(true);
-        await refreshCart();
-
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-        timeoutRef.current = setTimeout(() => {
-          setShowSuccessModal(false);
-          router.push("/");
-        }, 3000);
-      } else {
-        alert(data.error || "Failed to place order");
+      if (!orderData.success || !orderData.order || !orderData.keyId) {
+        alert(orderData.error || "Payment order creation failed");
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+
+      const options: RazorpayOptions = {
+        key: orderData.keyId,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
+        name: "ASR Offwhite Atelier",
+        description: "Order Payment",
+        order_id: orderData.order.id,
+        prefill: {
+          name: selectedAddress?.fullName,
+          contact: selectedAddress?.phone,
+        },
+        handler: async function (response) {
+          const verifyRes = await axios.post("/payment/verify", response);
+
+          const verifyData = verifyRes.data;
+
+          if (!verifyData.success) {
+            alert("Payment verification failed");
+            return;
+          }
+
+          await completeOrder(response.razorpay_payment_id);
+        },
+        modal: {
+          ondismiss: () => setPlacingOrder(false),
+        },
+        theme: {
+          color: "#0a0a0a",
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong during payment");
     } finally {
       setPlacingOrder(false);
     }
@@ -285,8 +393,8 @@ export function CheckoutPageView() {
               <span>Total Paid</span>
               <strong>
                 {orderDetails?.totalAmount
-                  ? formatCurrency(orderDetails.totalAmount / 100)
-                  : formatCurrency(total)}
+                  ? formatCurrencyFromPaise(orderDetails.totalAmount)
+                  : formatCurrencyFromPaise(total)}
               </strong>
 
               <span>Status</span>
@@ -505,7 +613,7 @@ export function CheckoutPageView() {
                 giftWrap={giftWrap}
                 setGiftWrap={setGiftWrap}
                 paymentOptions={[...paymentOptions]}
-                onValidationChange={setIsPaymentValid}
+                onValidationChange={() => undefined}
               />
             </>
           )}
@@ -636,7 +744,7 @@ export function CheckoutPageView() {
                         </div>
 
                         <div className="checkout-summary-price">
-                          {formatCurrency(item.totalPrice)}
+                          {formatCurrencyFromPaise(item.totalPrice)}
                         </div>
                       </div>
                     ))}
@@ -647,33 +755,33 @@ export function CheckoutPageView() {
                   <div className="checkout-summary-lines">
                     <div>
                       <span>Subtotal</span>
-                      <strong>{formatCurrency(subtotal)}</strong>
+                      <strong>{formatCurrencyFromPaise(subtotal)}</strong>
                     </div>
                     <div>
                       <span>Shipping</span>
                       <strong>
-                        {shipping === 0 ? "Free" : formatCurrency(shipping)}
+                        {shipping === 0 ? "Free" : formatCurrencyFromPaise(shipping)}
                       </strong>
                     </div>
                     <div>
                       <span>Gift Wrap</span>
                       <strong>
-                        {giftWrap ? formatCurrency(giftWrapCharge) : "No"}
+                        {giftWrap ? formatCurrencyFromPaise(giftWrapCharge) : "No"}
                       </strong>
                     </div>
                     <div>
                       <span>Estimated Tax</span>
-                      <strong>{formatCurrency(tax)}</strong>
+                      <strong>{formatCurrencyFromPaise(tax)}</strong>
                     </div>
                     <div className="checkout-savings-line">
                       <span>Estimated Savings</span>
-                      <strong>{formatCurrency(savings)}</strong>
+                      <strong>{formatCurrencyFromPaise(savings)}</strong>
                     </div>
                   </div>
 
                   <div className="checkout-summary-total">
                     <span>Total</span>
-                    <strong>{formatCurrency(total)}</strong>
+                    <strong>{formatCurrencyFromPaise(total)}</strong>
                   </div>
 
                   <div className="checkout-mini-timeline">
@@ -732,7 +840,7 @@ export function CheckoutPageView() {
                     </span>
                     <span>
                       <BadgeCheck className="size-4" />
-                      You saved {formatCurrency(savings)} on this order
+                      You saved {formatCurrencyFromPaise(savings)} on this order
                     </span>
                   </div>
                 </>

@@ -1,4 +1,24 @@
 import { prisma } from "@/lib/prisma";
+
+type DeliveryMethod = "standard" | "express";
+
+function getCheckoutAmountPaise({
+  subtotal,
+  deliveryMethod,
+  giftWrap,
+}: {
+  subtotal: number;
+  deliveryMethod: DeliveryMethod;
+  giftWrap: boolean;
+}) {
+  const baseShipping = subtotal >= 18000 ? 0 : 1200;
+  const shipping = deliveryMethod === "express" ? baseShipping + 1800 : baseShipping;
+  const giftWrapCharge = giftWrap ? 900 : 0;
+  const tax = Math.round(subtotal * 0.08);
+
+  return subtotal + shipping + giftWrapCharge + tax;
+}
+
 export const getOrdersByUserId = async (userId: string) => {
   return await prisma.order.findMany({
     where: { userId },
@@ -26,9 +46,13 @@ export const cancelOrderById = async (orderId: string, userId: string) => {
 export const createOrder = async ({
   userId,
   addressId,
+  deliveryMethod = "standard",
+  giftWrap = false,
 }: {
   userId: string;
   addressId: string;
+  deliveryMethod?: DeliveryMethod;
+  giftWrap?: boolean;
 }) => {
   const cartItems = await prisma.cartItem.findMany({
     where: { userId },
@@ -51,10 +75,15 @@ export const createOrder = async ({
 
   if (!user) throw new Error("User not found");
 
-  const totalAmount = cartItems.reduce(
+  const subtotal = cartItems.reduce(
     (sum, item) => sum + item.quantity * item.variant.price,
     0
   );
+  const totalAmount = getCheckoutAmountPaise({
+    subtotal,
+    deliveryMethod,
+    giftWrap,
+  });
 
   const order = await prisma.order.create({
     data: {
