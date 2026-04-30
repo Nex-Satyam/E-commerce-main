@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { Check, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import type { AdminOrder, OrderStatus } from "@/components/admin/types";
 import { formatCurrency, formatShortDate, orderStatusClass } from "@/components/admin/types";
 
-const timelineSteps: Array<{ label: string; status: Exclude<OrderStatus, "CANCELLED"> }> = [
+const timelineSteps: Array<{ label: string; status: Exclude<OrderStatus, "CANCELLED" | "RETURN_REQUESTED" | "RETURNED"> }> = [
   { label: "Placed", status: "PENDING" },
   { label: "Confirmed", status: "CONFIRMED" },
   { label: "Shipped", status: "SHIPPED" },
@@ -19,6 +20,8 @@ const stepIndexByStatus: Record<OrderStatus, number> = {
   CONFIRMED: 1,
   SHIPPED: 2,
   DELIVERED: 3,
+  RETURN_REQUESTED: 3,
+  RETURNED: 3,
   CANCELLED: -1,
 };
 
@@ -41,14 +44,8 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
   useEffect(() => {
     let isMounted = true;
 
-    fetch(`/api/admin/orders/${orderId}`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Order not found.");
-        }
-        return response.json();
-      })
-      .then((data) => {
+    axios.get(`/api/admin/orders/${orderId}`)
+      .then(({ data }) => {
         if (!isMounted) return;
         setOrder(data.order);
         setValidNextStatuses(data.validNextStatuses ?? []);
@@ -71,40 +68,29 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
   async function updateStatus() {
     if (!selectedStatus) return;
     setIsUpdating(true);
-    const response = await fetch(`/api/admin/orders/${orderId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: selectedStatus }),
-    });
-    setIsUpdating(false);
-
-    if (!response.ok) {
+    try {
+      const { data } = await axios.patch(`/api/admin/orders/${orderId}/status`, { status: selectedStatus });
+      setOrder(data.order);
+      setValidNextStatuses(data.order ? nextStatuses(data.order.status) : []);
+      setSelectedStatus("");
+      toast.success("Order status updated.");
+    } catch {
       toast.error("Unable to update order status.");
-      return;
+    } finally {
+      setIsUpdating(false);
     }
-
-    const data = await response.json();
-    setOrder(data.order);
-    setValidNextStatuses(data.order ? nextStatuses(data.order.status) : []);
-    setSelectedStatus("");
-    toast.success("Order status updated.");
   }
 
   async function saveNote() {
     setIsSavingNote(true);
-    const response = await fetch(`/api/admin/orders/${orderId}/note`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ note }),
-    });
-    setIsSavingNote(false);
-
-    if (!response.ok) {
+    try {
+      await axios.patch(`/api/admin/orders/${orderId}/note`, { note });
+      toast.success("Internal note saved.");
+    } catch {
       toast.error("Unable to save note.");
-      return;
+    } finally {
+      setIsSavingNote(false);
     }
-
-    toast.success("Internal note saved.");
   }
 
   if (!order) {
@@ -314,6 +300,8 @@ function nextStatuses(status: OrderStatus): OrderStatus[] {
     CONFIRMED: ["SHIPPED", "CANCELLED"],
     SHIPPED: ["DELIVERED", "CANCELLED"],
     DELIVERED: [],
+    RETURN_REQUESTED: ["RETURNED"],
+    RETURNED: [],
     CANCELLED: [],
   };
 

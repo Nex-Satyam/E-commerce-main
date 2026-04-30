@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import axios from "axios";
 import { Search, UserMinus, UserPlus, ShieldAlert, ShieldCheck, ShoppingBag, Info, Users } from "lucide-react";
 import type { AdminUser } from "@/components/admin/types";
 import { formatShortDate, roleStatusClass } from "@/components/admin/types";
@@ -10,15 +12,15 @@ import toast from "react-hot-toast";
 import { SkeletonTable } from "./ui/skeleton-table";
 import { EmptyState } from "./ui/empty-state";
 import { Pagination } from "./ui/pagination";
-
-const pageSize = 20;
+import { PAGE_SIZE } from "./constants";
 
 export function UsersListPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get("page") ?? 1)));
   const [total, setTotal] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -32,16 +34,16 @@ export function UsersListPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
+  useEffect(() => {
+    setPage(Math.max(1, Number(searchParams.get("page") ?? 1)));
+  }, [searchParams]);
+
   const loadUsers = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({
-      search,
-      page: String(page),
-      limit: String(pageSize),
-    });
     try {
-      const response = await fetch(`/api/admin/users?${params.toString()}`);
-      const data = await response.json();
+      const { data } = await axios.get("/api/admin/users", {
+        params: { search, page, limit: PAGE_SIZE },
+      });
       setUsers(data.users ?? []);
       setTotal(data.total ?? 0);
     } catch (error) {
@@ -59,24 +61,15 @@ export function UsersListPage() {
     return () => window.clearTimeout(timer);
   }, [loadUsers]);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
 
   async function handleToggleBan(user: AdminUser) {
     setIsUpdating(user.id);
   // Optimistic UI could be applied here if we want, but since it's banning, maybe wait for response
     try {
-      const response = await fetch(`/api/admin/users/${user.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isBanned: !user.isBanned }),
-      });
-      if (response.ok) {
-        toast.success(`User ${user.isBanned ? "unbanned" : "banned"} successfully.`);
-        loadUsers();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Update failed.");
-      }
+      await axios.patch(`/api/admin/users/${user.id}`, { isBanned: !user.isBanned });
+      toast.success(`User ${user.isBanned ? "unbanned" : "banned"} successfully.`);
+      loadUsers();
     } catch {
       toast.error("Network error.");
     } finally {
@@ -87,18 +80,9 @@ export function UsersListPage() {
   async function handlePromote(user: AdminUser) {
     setIsUpdating(user.id);
     try {
-      const response = await fetch(`/api/admin/users/${user.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "ADMIN" }),
-      });
-      if (response.ok) {
-        toast.success("User promoted to Admin.");
-        loadUsers();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Update failed.");
-      }
+      await axios.patch(`/api/admin/users/${user.id}`, { role: "ADMIN" });
+      toast.success("User promoted to Admin.");
+      loadUsers();
     } catch {
       toast.error("Network error.");
     } finally {

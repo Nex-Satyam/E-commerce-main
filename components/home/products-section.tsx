@@ -66,7 +66,7 @@ export function ProductsSection() {
       <SectionHeading
         eyebrow="Featured Products"
         title="Pieces designed to mix, layer, and last."
-        note="Neutral shades, breathable textures, and silhouettes that move across workdays, weekends, and evenings."
+        // note="Neutral shades, breathable textures, and silhouettes that move across workdays, weekends, and evenings."
         split
       />
 

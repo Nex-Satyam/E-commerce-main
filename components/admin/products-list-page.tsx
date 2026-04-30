@@ -3,6 +3,8 @@
   import Image from "next/image";
   import Link from "next/link";
   import { useEffect, useMemo, useState } from "react";
+  import { useSearchParams } from "next/navigation";
+  import axios from "axios";
   import { Copy, Edit, PackagePlus, Box } from "lucide-react";
   import toast from "react-hot-toast";
   import type { AdminCategory, AdminProduct, ProductListResponse } from "@/components/admin/types";
@@ -10,17 +12,17 @@
   import { SkeletonTable } from "./ui/skeleton-table";
   import { EmptyState } from "./ui/empty-state";
   import { Pagination } from "./ui/pagination";
-
-  const pageSize = 20;
+  import { PAGE_SIZE } from "./constants";
 
   export function ProductsListPage() {
+    const searchParams = useSearchParams();
     const [products, setProducts] = useState<AdminProduct[]>([]);
     const [categories, setCategories] = useState<AdminCategory[]>([]);
     const [searchInput, setSearchInput] = useState("");
     const [search, setSearch] = useState("");
     const [category, setCategory] = useState("");
     const [active, setActive] = useState("");
-    const [page, setPage] = useState(1);
+    const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get("page") ?? 1)));
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
 
@@ -33,36 +35,16 @@
     }, [searchInput]);
 
     useEffect(() => {
+      setPage(Math.max(1, Number(searchParams.get("page") ?? 1)));
+    }, [searchParams]);
+
+    useEffect(() => {
       async function loadProducts() {
-        setLoading(true);
-        const params = new URLSearchParams({
-          search,
-          category,
-          active,
-          page: String(page),
-          limit: String(pageSize),
-        });
-        const response = await fetch(`/api/admin/products?${params.toString()}`);
-        const data = (await response.json()) as ProductListResponse;
-        setProducts(data.products);
-        setCategories(data.categories);
-        setTotal(data.total);
-        setLoading(false);
         try {
           setLoading(true);
-          const params = new URLSearchParams({
-            search,
-            category,
-            active,
-            page: String(page),
-            limit: String(pageSize),
+          const { data } = await axios.get<ProductListResponse>("/api/admin/products", {
+            params: { search, category, active, page, limit: PAGE_SIZE },
           });
-          const response = await fetch(`/api/admin/products?${params.toString()}`);
-          if (!response.ok) {
-            const err = await response.json().catch(() => ({ error: "Failed to load products" }));
-            throw new Error(err.error || "Failed to load products");
-          }
-          const data = (await response.json()) as ProductListResponse;
           setProducts(data.products);
           setCategories(data.categories);
           setTotal(data.total);
@@ -76,7 +58,7 @@
       loadProducts();
     }, [active, category, page, search]);
 
-    const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
+    const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
 
     async function toggleActive(product: AdminProduct, isActive: boolean) {
       setProducts((current) =>
@@ -84,13 +66,7 @@
       );
 
       try {
-        const response = await fetch(`/api/admin/products/${product.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isActive }),
-        });
-
-        if (!response.ok) throw new Error("Unable to update product.");
+        await axios.patch(`/api/admin/products/${product.id}`, { isActive });
       } catch (error) {
         setProducts((current) =>
           current.map((item) => (item.id === product.id ? { ...item, isActive: product.isActive } : item))
@@ -100,17 +76,14 @@
     }
 
     async function duplicateProduct(product: AdminProduct) {
-      const response = await fetch(`/api/admin/products/${product.id}/duplicate`, { method: "POST" });
-
-      if (!response.ok) {
+      try {
+        const { data } = await axios.post(`/api/admin/products/${product.id}/duplicate`);
+        setProducts((current) => [data.product, ...current].slice(0, PAGE_SIZE));
+        setTotal((current) => current + 1);
+        toast.success("Product duplicated.");
+      } catch {
         toast.error("Could not duplicate product.");
-        return;
       }
-
-      const data = await response.json();
-      setProducts((current) => [data.product, ...current].slice(0, pageSize));
-      setTotal((current) => current + 1);
-      toast.success("Product duplicated.");
     }
 
     return (
@@ -265,22 +238,7 @@
               Page {page} of {totalPages} · {total} products
             </span>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={page === 1}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                className="h-9 rounded-md border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                disabled={page === totalPages}
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                className="h-9 rounded-md border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-              </button>
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           </div>
         </section>

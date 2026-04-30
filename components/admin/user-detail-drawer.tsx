@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import axios from "axios";
 import { X, Mail, Calendar, Hash, IndianRupee, Clock } from "lucide-react";
 import { 
   formatCurrency, 
@@ -34,31 +35,10 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
       setSummary(null);
       setError(null);
       try {
-        const params = new URLSearchParams({ id: selectedUserId });
-        const response = await fetch(`/api/admin/users/summary?${params.toString()}`, {
+        const { data } = await axios.get("/api/admin/users/summary", {
+          params: { id: selectedUserId },
           headers: { Accept: "application/json" },
-          cache: "no-store",
-          redirect: "manual",
         });
-        const contentType = response.headers.get("content-type") ?? "";
-
-        if (!contentType.includes("application/json")) {
-          const body = await response.text();
-          console.error("User summary returned non-JSON:", {
-            status: response.status,
-            url: response.url,
-            contentType,
-            body: body.slice(0, 300),
-          });
-          setError("User details API returned a page instead of JSON.");
-          return;
-        }
-
-        const data = await response.json();
-        if (!response.ok) {
-          setError(data.error || "Failed to load user summary.");
-          return;
-        }
 
         if (data.summary) {
           setSummary(data.summary);

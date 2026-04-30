@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import axios from "axios";
 import { 
   Bell, 
   ShoppingBag, 
@@ -34,6 +35,7 @@ const iconMap: Record<string, any> = {
   ORDER_CONFIRMED: CheckCircle2,
   ORDER_SHIPPED: Package,
   ORDER_DELIVERED: CheckCircle2,
+  ORDER_RETURNED: CheckCircle2,
   ORDER_CANCELLED: XCircle,
   NEW_ORDER: ShoppingBag,
   LOW_STOCK: AlertTriangle,
@@ -50,9 +52,9 @@ export function NotificationsInboxPage() {
   async function loadNotifications() {
     setIsLoading(true);
     try {
-      const unreadOnly = filter === "unread" ? "true" : "false";
-      const response = await fetch(`/api/notifications?page=${page}&limit=${limit}&unreadOnly=${unreadOnly}`);
-      const data = await response.json();
+      const { data } = await axios.get("/api/notifications", {
+        params: { page, limit, unreadOnly: filter === "unread" },
+      });
       setNotifications(data.notifications || []);
       setTotal(data.total || 0);
     } catch (error) {
@@ -68,7 +70,7 @@ export function NotificationsInboxPage() {
 
   async function markAsRead(id: string) {
     try {
-      await fetch(`/api/notifications/${id}/read`, { method: "PATCH" });
+      await axios.patch(`/api/notifications/${id}/read`);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
     } catch (error) {
       toast.error("Failed to update notification");
@@ -77,7 +79,7 @@ export function NotificationsInboxPage() {
 
   async function markAllRead() {
     try {
-      await fetch("/api/notifications/read-all", { method: "PATCH" });
+      await axios.patch("/api/notifications/read-all");
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       toast.success("All marked as read");
     } catch (error) {

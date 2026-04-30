@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import axios from "axios";
 import { Bell } from "lucide-react";
 import useSWR from "swr";
 import { NotificationsDropdown } from "./notifications-dropdown";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = (url: string) => axios.get(url).then((res) => res.data);
 
 export function NotificationsBell() {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,7 +40,7 @@ export function NotificationsBell() {
 
   async function handleMarkRead(id: string) {
     try {
-      await fetch(`/api/notifications/${id}/read`, { method: "PATCH" });
+      await axios.patch(`/api/notifications/${id}/read`);
       mutateCount();
       mutateList();
     } catch (error) {
@@ -49,7 +50,7 @@ export function NotificationsBell() {
 
   async function handleMarkAllRead() {
     try {
-      await fetch("/api/notifications/read-all", { method: "PATCH" });
+      await axios.patch("/api/notifications/read-all");
       mutateCount();
       mutateList();
     } catch (error) {
