@@ -472,7 +472,7 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
                     key={item.title}
                     className="group rounded-[24px] border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-black hover:shadow-[0_18px_40px_rgba(0,0,0,0.08)]"
                   >
-                    <div className="mb-4 grid size-11 place-items-center rounded-full bg-neutral-100 transition group-hover:bg-black group-hover:text-white">
+                    <div className="mb-4 grid size-11 place-items-center rounded-full bg-neutral-100 transition group-hover:bg-black group-hover:text-white group-hover:shadow-md">
                       <Icon size={20} />
                     </div>
                     <p className="font-semibold">{item.title}</p>

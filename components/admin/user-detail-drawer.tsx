@@ -174,7 +174,7 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
                   <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-100">
                     {summary.recentOrders.length > 0 ? (
                       summary.recentOrders.map((order) => (
-                        <div key={order.id} className="group flex items-center justify-between p-4 hover:bg-slate-50 transition">
+                        <div key={order.id} className="group flex items-center justify-between p-4 transition hover:bg-slate-50 hover:shadow-sm">
                           <div className="grid gap-1">
                             <p className="font-mono text-sm font-medium text-slate-900">#{order.id.slice(-8).toUpperCase()}</p>
                             <p className="text-[11px] text-slate-500">{formatShortDate(order.createdAt)}</p>

@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 
 function ProductCardSkeleton() {
   return (
-    <Card className="product-card product-card-skeleton py-0 shadow-none">
+    <Card className="product-card product-card-skeleton cursor-pointer py-0 shadow-none transition-shadow duration-300 hover:shadow-lg hover:shadow-gray-400">
       <div className="product-card-topbar">
         <Skeleton className="product-skeleton-pill" />
         <Skeleton className="product-skeleton-icon" />

@@ -106,7 +106,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   return (
     <Card
       id={product.slug}
-      className="product-card border-[color:var(--border)] bg-[var(--card)] py-0 shadow-none"
+      className="product-card cursor-pointer border-[color:var(--border)] bg-[var(--card)] py-0 shadow-none transition-shadow duration-300 hover:shadow-lg hover:shadow-gray-400"
     >
       <div className="product-card-topbar">
         <div className="product-tag">

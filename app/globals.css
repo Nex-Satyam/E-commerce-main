@@ -74,6 +74,14 @@ button {
   font: inherit;
 }
 
+:where(div[class*="hover:"]) {
+  transition-property: transform, background-color, border-color, color, opacity, box-shadow;
+}
+
+:where(div[class*="hover:"]:hover) {
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+}
+
 .homepage {
   width: 100%;
   margin: 0 auto;
@@ -679,11 +687,10 @@ button {
   border-radius: 16px;
   border: 1px solid var(--border);
   background: #ffffff;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
   isolation: isolate;
   transition:
-    transform 220ms ease,
-    box-shadow 220ms ease,
+    box-shadow 300ms ease,
     border-color 220ms ease;
 }
 
@@ -701,9 +708,7 @@ button {
 }
 
 .product-card:hover {
-  transform: translateY(-6px);
   border-color: rgba(10, 10, 10, 0.2);
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.12);
 }
 
 .product-card:hover::before {

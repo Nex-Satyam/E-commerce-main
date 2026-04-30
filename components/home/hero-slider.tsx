@@ -8,7 +8,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import Link from "next/link";
 type SliderProduct = {
   id: string;
   name: string;
@@ -73,10 +73,10 @@ export function HeroSlider() {
             <p>{products[activeIndex].description || "No description available."}</p>
             <div className="hero-actions">
               <CtaButton asChild>
-                <a href={`#products`}>View All Products</a>
+                <Link className="bg-white" href='/products'>View All Products</Link>
               </CtaButton>
               <CtaButton tone="light" asChild>
-                <a href={`/products/${products[activeIndex].slug}`}>View Details</a>
+                <Link href={`/products/${products[activeIndex].slug}`}>View Details</Link>
               </CtaButton>
             </div>
           </>
