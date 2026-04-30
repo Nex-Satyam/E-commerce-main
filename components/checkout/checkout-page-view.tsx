@@ -28,6 +28,7 @@ import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCart } from "@/components/cart/cart-provider";
+import { useToast } from "@/components/ui/toast-context";
 import { AddressForm } from "./address-form";
 import { PaymentForm } from "./payment-form";
 
@@ -38,8 +39,30 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function formatCurrencyFromPaise(value: number) {
+  return formatCurrency(value / 100);
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (
+      error as { response?: { data?: { error?: unknown } } }
+    ).response;
+
+    if (typeof response?.data?.error === "string") {
+      return response.data.error;
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 type DeliveryMethod = "standard" | "express";
-type PaymentMethod = "card" | "upi" | "cod";
+type PaymentMethod = "online" | "cod";
 
 type CheckoutAddress = {
   id: string;
@@ -74,17 +97,81 @@ type OrderDetails = {
   id?: string;
   totalAmount?: number;
   status?: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  paymentProvider?: string | null;
+  paymentId?: string | null;
 };
+
+type RazorpayPaymentResponse = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayOrderResponse = {
+  success?: boolean;
+  keyId?: string;
+  order?: {
+    id: string;
+    amount: number;
+    currency: string;
+  };
+  error?: string;
+  message?: string;
+};
+
+type RazorpayFailureResponse = {
+  error?: {
+    code?: string;
+    description?: string;
+    reason?: string;
+    source?: string;
+    step?: string;
+  };
+};
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill?: {
+    name?: string;
+    contact?: string;
+  };
+  handler: (response: RazorpayPaymentResponse) => void | Promise<void>;
+  modal?: {
+    ondismiss?: () => void;
+  };
+  theme?: {
+    color: string;
+  };
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => {
+      open: () => void;
+      on: (
+        event: "payment.failed",
+        handler: (response: RazorpayFailureResponse) => void
+      ) => void;
+    };
+  }
+}
 
 export function CheckoutPageView() {
   const router = useRouter();
   const { refreshCart } = useCart();
+  const { showToast } = useToast();
 
   const [step, setStep] = useState(0);
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("standard");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
-  const [isPaymentValid, setIsPaymentValid] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("online");
   const [deliverySlot, setDeliverySlot] = useState("Morning");
   const [giftWrap, setGiftWrap] = useState(true);
 
@@ -184,83 +271,214 @@ export function CheckoutPageView() {
 
   const hasItems = items.length > 0;
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  const baseShipping = subtotal >= 180 ? 0 : 12;
-  const shipping = deliveryMethod === "express" ? baseShipping + 18 : baseShipping;
-  const giftWrapCharge = giftWrap ? 9 : 0;
-  const tax = Number((subtotal * 0.08).toFixed(2));
+  const baseShipping = subtotal >= 18000 ? 0 : 1200;
+  const shipping = deliveryMethod === "express" ? baseShipping + 1800 : baseShipping;
+  const giftWrapCharge = giftWrap ? 900 : 0;
+  const tax = Math.round(subtotal * 0.08);
   const total = subtotal + shipping + tax + giftWrapCharge;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const savings = hasItems ? Math.max(0, subtotal * 0.05) : 0;
 
   const selectedAddress = addresses.find((addr) => addr.id === addressId);
 
+  const notify = (
+    message: string,
+    type: "success" | "error" | "info" | "warning" = "info"
+  ) => {
+    showToast(message, type);
+  };
+
+  const getPaymentFailureReason = (response: RazorpayFailureResponse) => {
+    const message =
+      response.error?.description ||
+      response.error?.reason ||
+      "Payment failed. Please try another payment method or use Cash on Delivery.";
+    const normalizedMessage = message.toLowerCase();
+
+    if (
+      normalizedMessage.includes("maximum") ||
+      normalizedMessage.includes("exceed") ||
+      normalizedMessage.includes("limit")
+    ) {
+      return "Payment failed because the amount exceeds the limit allowed by Razorpay, your bank, or this payment method. Try Cash on Delivery, reduce the order value, or contact support.";
+    }
+
+    if (
+      normalizedMessage.includes("minimum") ||
+      normalizedMessage.includes("less than") ||
+      normalizedMessage.includes("at least")
+    ) {
+      return "Payment failed because the amount is below Razorpay's minimum limit. Please add items worth at least INR 1.00 or choose Cash on Delivery.";
+    }
+
+    return message;
+  };
+
   const deliveryOptions = [
     {
       id: "standard" as const,
       title: "Standard Delivery",
       eta: "3-5 days",
-      price: baseShipping === 0 ? "Free" : formatCurrency(baseShipping),
-      badge: subtotal >= 180 ? "Free eligible" : "Best value",
+      price: baseShipping === 0 ? "Free" : formatCurrencyFromPaise(baseShipping),
+      badge: subtotal >= 18000 ? "Free eligible" : "Best value",
     },
     {
       id: "express" as const,
       title: "Express Delivery",
       eta: "Next day",
-      price: formatCurrency(baseShipping + 18),
+      price: formatCurrencyFromPaise(baseShipping + 1800),
       badge: "Fastest",
     },
   ];
 
   const paymentOptions = [
-    { id: "card", title: "Card", copy: "Visa, Mastercard" },
-    { id: "upi", title: "UPI", copy: "Google Pay, PhonePe" },
+    { id: "online", title: "UPI, Card, Net Banking", copy: "Pay securely online" },
     { id: "cod", title: "Cash on Delivery", copy: "Pay at home" },
   ] as const;
 
+  const completeOrder = async (
+    paymentDetails:
+      | {
+          method: "online";
+          paymentId: string;
+          providerOrderId: string;
+        }
+      | { method: "cod" }
+  ) => {
+    const finalOrderRes = await axios.post("/order", {
+      addressId,
+      deliveryMethod,
+      giftWrap,
+      paymentMethod:
+        paymentDetails.method === "online" ? "ONLINE" : "CASH_ON_DELIVERY",
+      paymentId:
+        paymentDetails.method === "online" ? paymentDetails.paymentId : undefined,
+      paymentProviderOrderId:
+        paymentDetails.method === "online"
+          ? paymentDetails.providerOrderId
+          : undefined,
+    });
+
+    const finalOrderData = finalOrderRes.data;
+
+    if (!finalOrderData.success) {
+      notify(finalOrderData.error || "Failed to place order", "error");
+      return;
+    }
+
+    setOrderDetails(finalOrderData.order || {});
+    setShowSuccessModal(true);
+    notify(
+      finalOrderData.order?.paymentStatus === "PAID"
+        ? "Order placed successfully. Payment is marked as paid."
+        : "Cash on Delivery order placed successfully. Payment will be collected at delivery.",
+      "success"
+    );
+    await refreshCart();
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    timeoutRef.current = setTimeout(() => {
+      setShowSuccessModal(false);
+      router.push("/");
+    }, 3000);
+  };
+
   const handlePlaceOrder = async () => {
     if (!addressId) {
-      alert("Please select a delivery address.");
+      notify("Please select a delivery address before placing the order.", "warning");
       return;
     }
 
     if (!hasItems) {
-      alert("Your cart is empty.");
-      return;
-    }
-
-    if (!isPaymentValid) {
-      alert("Please complete valid payment details before placing the order.");
+      notify("Your cart is empty. Add products before checkout.", "warning");
       return;
     }
 
     setPlacingOrder(true);
 
     try {
-      const res = await fetch("/api/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ addressId }),
+      if (paymentMethod === "cod") {
+        notify("Placing your Cash on Delivery order now.", "info");
+        await completeOrder({ method: "cod" });
+        return;
+      }
+
+      if (!window.Razorpay) {
+        notify("Payment gateway is still loading. Please try again in a moment.", "warning");
+        return;
+      }
+
+      const orderRes = await axios.post<RazorpayOrderResponse>("/payment/create-order", {
+        deliveryMethod,
+        giftWrap,
       });
 
-      const data = await res.json();
+      const orderData = orderRes.data;
 
-      if (data.success) {
-        setOrderDetails(data.order || {});
-        setShowSuccessModal(true);
-        await refreshCart();
-
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-        timeoutRef.current = setTimeout(() => {
-          setShowSuccessModal(false);
-          router.push("/");
-        }, 3000);
-      } else {
-        alert(data.error || "Failed to place order");
+      if (!orderData.success || !orderData.order || !orderData.keyId) {
+        notify(orderData.error || "Payment order creation failed", "error");
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+
+      notify(
+        orderData.message ||
+          "Payment popup is opening. Complete payment to place the order.",
+        "info"
+      );
+
+      const options: RazorpayOptions = {
+        key: orderData.keyId,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
+        name: "ASR Offwhite Atelier",
+        description: "Order Payment",
+        order_id: orderData.order.id,
+        prefill: {
+          name: selectedAddress?.fullName,
+          contact: selectedAddress?.phone,
+        },
+        handler: async function (response) {
+          const verifyRes = await axios.post("/payment/verify", response);
+
+          const verifyData = verifyRes.data;
+
+          if (!verifyData.success) {
+            notify(
+              verifyData.error ||
+                "Payment verification failed. Your order was not placed because we could not confirm the payment.",
+              "error"
+            );
+            return;
+          }
+
+          notify("Payment verified successfully. Placing your order now.", "success");
+          await completeOrder({
+            method: "online",
+            paymentId: response.razorpay_payment_id,
+            providerOrderId: response.razorpay_order_id,
+          });
+        },
+        modal: {
+          ondismiss: () => {
+            notify("Payment popup was closed before payment was completed.", "warning");
+            setPlacingOrder(false);
+          },
+        },
+        theme: {
+          color: "#0a0a0a",
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on("payment.failed", (response) => {
+        notify(getPaymentFailureReason(response), "error");
+        setPlacingOrder(false);
+      });
+      razorpay.open();
+    } catch (error) {
+      console.error(error);
+      notify(getErrorMessage(error, "Something went wrong during payment"), "error");
     } finally {
       setPlacingOrder(false);
     }
@@ -282,15 +500,24 @@ export function CheckoutPageView() {
               <span>Order ID</span>
               <strong>{orderDetails?.id || "-"}</strong>
 
-              <span>Total Paid</span>
+              <span>
+                {orderDetails?.paymentStatus === "PAID" ? "Total Paid" : "Order Total"}
+              </span>
               <strong>
                 {orderDetails?.totalAmount
-                  ? formatCurrency(orderDetails.totalAmount / 100)
-                  : formatCurrency(total)}
+                  ? formatCurrencyFromPaise(orderDetails.totalAmount)
+                  : formatCurrencyFromPaise(total)}
               </strong>
 
               <span>Status</span>
               <strong>{orderDetails?.status || "Confirmed"}</strong>
+
+              <span>Payment</span>
+              <strong>
+                {orderDetails?.paymentStatus === "PAID"
+                  ? "Paid"
+                  : "Cash on Delivery"}
+              </strong>
             </div>
 
             <small>Redirecting to home...</small>
@@ -505,7 +732,7 @@ export function CheckoutPageView() {
                 giftWrap={giftWrap}
                 setGiftWrap={setGiftWrap}
                 paymentOptions={[...paymentOptions]}
-                onValidationChange={setIsPaymentValid}
+                onValidationChange={() => undefined}
               />
             </>
           )}
@@ -636,7 +863,7 @@ export function CheckoutPageView() {
                         </div>
 
                         <div className="checkout-summary-price">
-                          {formatCurrency(item.totalPrice)}
+                          {formatCurrencyFromPaise(item.totalPrice)}
                         </div>
                       </div>
                     ))}
@@ -647,33 +874,33 @@ export function CheckoutPageView() {
                   <div className="checkout-summary-lines">
                     <div>
                       <span>Subtotal</span>
-                      <strong>{formatCurrency(subtotal)}</strong>
+                      <strong>{formatCurrencyFromPaise(subtotal)}</strong>
                     </div>
                     <div>
                       <span>Shipping</span>
                       <strong>
-                        {shipping === 0 ? "Free" : formatCurrency(shipping)}
+                        {shipping === 0 ? "Free" : formatCurrencyFromPaise(shipping)}
                       </strong>
                     </div>
                     <div>
                       <span>Gift Wrap</span>
                       <strong>
-                        {giftWrap ? formatCurrency(giftWrapCharge) : "No"}
+                        {giftWrap ? formatCurrencyFromPaise(giftWrapCharge) : "No"}
                       </strong>
                     </div>
                     <div>
                       <span>Estimated Tax</span>
-                      <strong>{formatCurrency(tax)}</strong>
+                      <strong>{formatCurrencyFromPaise(tax)}</strong>
                     </div>
                     <div className="checkout-savings-line">
                       <span>Estimated Savings</span>
-                      <strong>{formatCurrency(savings)}</strong>
+                      <strong>{formatCurrencyFromPaise(savings)}</strong>
                     </div>
                   </div>
 
                   <div className="checkout-summary-total">
                     <span>Total</span>
-                    <strong>{formatCurrency(total)}</strong>
+                    <strong>{formatCurrencyFromPaise(total)}</strong>
                   </div>
 
                   <div className="checkout-mini-timeline">
@@ -694,7 +921,9 @@ export function CheckoutPageView() {
                       <Button
                         type="button"
                         className="checkout-primary-action"
-                        onClick={() => alert("Please complete address first")}
+                        onClick={() =>
+                          notify("Please complete address selection first.", "warning")
+                        }
                       >
                         Complete Address First
                       </Button>
@@ -711,7 +940,7 @@ export function CheckoutPageView() {
                             Placing Order...
                           </>
                         ) : (
-                          "Place Order"
+                          paymentMethod === "cod" ? "Place COD Order" : "Pay & Place Order"
                         )}
                       </Button>
                     )}
@@ -732,7 +961,7 @@ export function CheckoutPageView() {
                     </span>
                     <span>
                       <BadgeCheck className="size-4" />
-                      You saved {formatCurrency(savings)} on this order
+                      You saved {formatCurrencyFromPaise(savings)} on this order
                     </span>
                   </div>
                 </>

@@ -22,6 +22,14 @@ const stepIndexByStatus: Record<OrderStatus, number> = {
   CANCELLED: -1,
 };
 
+function paymentMethodLabel(method?: string, provider?: string | null) {
+  return method === "ONLINE" ? provider || "Online payment" : "Cash on Delivery";
+}
+
+function paymentStatusLabel(status?: string) {
+  return status === "PAID" ? "Payment paid" : "Payment pending";
+}
+
 export function OrderDetailPage({ orderId }: { orderId: string }) {
   const [order, setOrder] = useState<AdminOrder | null>(null);
   const [validNextStatuses, setValidNextStatuses] = useState<OrderStatus[]>([]);
@@ -151,6 +159,28 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-950">Delivery Address</h2>
             <p className="mt-4 text-sm leading-6 text-slate-600">{order.addressText}</p>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-950">Payment</h2>
+            <div className="mt-4 grid gap-2 text-sm">
+              <p className="font-medium text-slate-950">
+                {paymentStatusLabel(order.paymentStatus)}
+              </p>
+              <p className="text-slate-600">
+                Method: {paymentMethodLabel(order.paymentMethod, order.paymentProvider)}
+              </p>
+              {order.paymentId ? (
+                <p className="break-all text-slate-600">Payment ID: {order.paymentId}</p>
+              ) : null}
+              {order.paymentProviderOrderId ? (
+                <p className="break-all text-slate-600">
+                  Provider order: {order.paymentProviderOrderId}
+                </p>
+              ) : null}
+              {order.paidAt ? (
+                <p className="text-slate-600">Paid at: {formatShortDate(order.paidAt)}</p>
+              ) : null}
+            </div>
           </div>
         </div>
 

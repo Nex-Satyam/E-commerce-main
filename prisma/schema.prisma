@@ -214,6 +214,13 @@ model Order {
 
   adminNote String? // internal note visible only to admin, never to customer
 
+  paymentMethod          String   @default("CASH_ON_DELIVERY")
+  paymentStatus          String   @default("PENDING")
+  paymentProvider        String?
+  paymentId              String?
+  paymentProviderOrderId String?
+  paidAt                 DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -1,14 +1,17 @@
 import { prisma } from "./prisma";
 import { NotifType } from "@prisma/client";
 
+type NotificationData = {
+  orderId?: string;
+  productName?: string;
+  variantName?: string;
+  stock?: number;
+};
+
 export async function createNotification(
   userId: string | null,
   type: NotifType,
-  data: {
-    orderId?: string;
-    productName?: string;
-    variantName?: string;
-  }
+  data: NotificationData
 ) {
   let title = "";
   let message = "";
@@ -46,8 +49,11 @@ export async function createNotification(
       link = `/admin/orders?orderId=${data.orderId}`;
       break;
     case "LOW_STOCK":
-      title = "Low Stock Alert";
-      message = `Low stock for ${data.productName} (${data.variantName}). Only few items left.`;
+      title = data.stock === 0 ? "Out of Stock Alert" : "Low Stock Alert";
+      message =
+        data.stock === 0
+          ? `${data.productName} (${data.variantName}) is out of stock.`
+          : `Low stock for ${data.productName} (${data.variantName}). Only ${data.stock ?? "few"} item(s) left.`;
       link = `/admin/products/stock`;
       break;
   }
@@ -64,7 +70,7 @@ export async function createNotification(
   });
 }
 
-export async function notifyAdmins(type: NotifType, data: any) {
+export async function notifyAdmins(type: NotifType, data: NotificationData) {
   const admins = await prisma.user.findMany({
     where: { role: "ADMIN" },
     select: { id: true },

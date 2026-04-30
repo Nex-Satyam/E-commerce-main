@@ -23,6 +23,7 @@ import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import api from "@/lib/axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type WishlistProduct = {
   id: string;
@@ -54,6 +55,50 @@ function formatCurrency(value?: number) {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(value / 100);
+}
+
+function WishlistLoadingSkeleton() {
+  return (
+    <>
+      <div className="wishlist-stat-grid" aria-hidden="true">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="wishlist-stat-card">
+            <Skeleton className="h-9 w-14 bg-neutral-200" />
+            <Skeleton className="h-4 w-24 bg-neutral-200" />
+          </div>
+        ))}
+      </div>
+
+      <div className="wishlist-grid" aria-busy="true" aria-label="Loading wishlist">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Card key={index} className="wishlist-card py-0 shadow-none">
+            <div className="wishlist-card-shell">
+              <Skeleton className="min-h-[260px] w-full bg-neutral-200" />
+              <CardContent className="wishlist-card-content">
+                <div className="wishlist-status-row">
+                  <div className="wishlist-meta-stack">
+                    <Skeleton className="h-8 w-32 rounded-full bg-neutral-200" />
+                    <Skeleton className="h-7 w-48 bg-neutral-200" />
+                  </div>
+                  <Skeleton className="size-9 rounded-full bg-neutral-200" />
+                </div>
+                <Skeleton className="h-4 w-full bg-neutral-200" />
+                <Skeleton className="h-4 w-4/5 bg-neutral-200" />
+                <div className="wishlist-meta-row">
+                  <Skeleton className="h-6 w-24 bg-neutral-200" />
+                  <Skeleton className="h-6 w-28 bg-neutral-200" />
+                </div>
+                <div className="wishlist-card-footer">
+                  <Skeleton className="h-9 w-32 rounded-full bg-neutral-200" />
+                  <Skeleton className="h-11 w-36 rounded-full bg-neutral-800" />
+                </div>
+              </CardContent>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
 }
 
 export default function WishlistPageView() {
@@ -136,26 +181,22 @@ export default function WishlistPageView() {
       </section>
 
       <section className="wishlist-shell">
-        <div className="wishlist-stat-grid">
-          {wishlistStats.map((stat) => (
-            <div key={stat.label} className="wishlist-stat-card">
-              <strong>{stat.value}</strong>
-              <span>{stat.label}</span>
-            </div>
-          ))}
-        </div>
-
         {loading ? (
-          <Card className="wishlist-empty-card py-0 shadow-none">
-            <CardContent className="wishlist-empty-content">
-              <Loader2 className="size-6 animate-spin" />
-              <h2>Loading your wishlist...</h2>
-              <p>Gathering saved products and availability.</p>
-            </CardContent>
-          </Card>
-        ) : wishlist.length > 0 ? (
-          <div className="wishlist-grid">
-            {wishlist.map((item) => {
+          <WishlistLoadingSkeleton />
+        ) : (
+          <>
+            <div className="wishlist-stat-grid">
+              {wishlistStats.map((stat) => (
+                <div key={stat.label} className="wishlist-stat-card">
+                  <strong>{stat.value}</strong>
+                  <span>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {wishlist.length > 0 ? (
+              <div className="wishlist-grid">
+                {wishlist.map((item) => {
               const product = item.product;
               const image = product.images?.[0]?.url || "/placeholder.png";
               const firstVariant = product.variants?.[0];
@@ -248,22 +289,24 @@ export default function WishlistPageView() {
                   </div>
                 </Card>
               );
-            })}
-          </div>
-        ) : (
-          <Card className="wishlist-empty-card py-0 shadow-none">
-            <CardContent className="wishlist-empty-content">
-              <div className="wishlist-empty-icon">
-                <ShoppingBag className="size-7" />
+                })}
               </div>
-              <p className="eyebrow">Wishlist Empty</p>
-              <h2>No saved pieces right now.</h2>
-              <p>Tap the heart on any product card to save it here for later.</p>
-              <CtaButton asChild className="wishlist-action-button">
-                <Link href="/#products">Browse Products</Link>
-              </CtaButton>
-            </CardContent>
-          </Card>
+            ) : (
+              <Card className="wishlist-empty-card py-0 shadow-none">
+                <CardContent className="wishlist-empty-content">
+                  <div className="wishlist-empty-icon">
+                    <ShoppingBag className="size-7" />
+                  </div>
+                  <p className="eyebrow">Wishlist Empty</p>
+                  <h2>No saved pieces right now.</h2>
+                  <p>Tap the heart on any product card to save it here for later.</p>
+                  <CtaButton asChild className="wishlist-action-button">
+                    <Link href="/#products">Browse Products</Link>
+                  </CtaButton>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
 
         <div className="wishlist-feature-grid">

@@ -31,6 +31,8 @@ type OrderEmailData = {
   customerEmail: string;
   totalAmount: number;
   createdAt: Date;
+  paymentMethod?: string;
+  paymentStatus?: string;
   items: OrderEmailItem[];
   address?: OrderEmailAddress | null;
 };
@@ -132,6 +134,13 @@ function buildOrderConfirmationEmail(order: OrderEmailData) {
             <div style="line-height:1.65;color:#111827;">${addressLines}</div>
           </div>
 
+          <div style="border:1px solid #e5e7eb;border-radius:18px;padding:18px;margin-top:18px;">
+            <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Payment</div>
+            <div style="line-height:1.65;color:#111827;">
+              ${order.paymentStatus === "PAID" ? "Payment paid online" : "Cash on Delivery"}
+            </div>
+          </div>
+
           <a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/orders" style="display:inline-block;margin-top:24px;background:#000;color:#fff;text-decoration:none;border-radius:999px;padding:13px 22px;font-weight:800;">
             View order
           </a>
@@ -192,7 +201,14 @@ export async function handleCheckout(req: NextRequest) {
     const userId = session.user.id;
 
     const body = await req.json();
-    const { addressId } = body;
+    const {
+      addressId,
+      deliveryMethod,
+      giftWrap,
+      paymentMethod,
+      paymentId,
+      paymentProviderOrderId,
+    } = body;
 
     if (!addressId) {
       return NextResponse.json(
@@ -201,8 +217,26 @@ export async function handleCheckout(req: NextRequest) {
       );
     }
 
+    const normalizedPaymentMethod =
+      paymentMethod === "ONLINE" ? "ONLINE" : "CASH_ON_DELIVERY";
 
-    const order = await createOrder({ userId, addressId });
+    if (normalizedPaymentMethod === "ONLINE" && !paymentId) {
+      return NextResponse.json(
+        { error: "Payment confirmation missing" },
+        { status: 400 }
+      );
+    }
+
+
+    const order = await createOrder({
+      userId,
+      addressId,
+      deliveryMethod,
+      giftWrap,
+      paymentMethod: normalizedPaymentMethod,
+      paymentId,
+      paymentProviderOrderId,
+    });
 
     try {
       await sendEmail({

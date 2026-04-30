@@ -8,6 +8,8 @@ import {
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import ClientLayout from "@/components/ClientLayout";
+import ClientProviders from "@/components/auth/client-providers";
+import Script from "next/script";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -45,7 +47,10 @@ export default function RootLayout({
       )}
     >
       <body className="antialiased bg-[#F1EFE8] text-[#2C2C2A]">
-        <ClientLayout>{children}</ClientLayout>
+        <ClientProviders>
+          <ClientLayout>{children}</ClientLayout>
+          <Script src="https://checkout.razorpay.com/v1/checkout.js" />
+        </ClientProviders>
       </body>
     </html>
   );

@@ -21,6 +21,10 @@ const statuses: Array<{ label: string; value: "" | OrderStatus }> = [
 
 const pageSize = 20;
 
+function paymentStatusLabel(status?: string) {
+  return status === "PAID" ? "Paid" : "COD";
+}
+
 export function OrdersListPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [status, setStatus] = useState<"" | OrderStatus>("");
@@ -159,7 +163,7 @@ export function OrdersListPage() {
         </div>
       </section>
 
-      <section className="rounded-md border border-slate-200 bg-white shadow-sm">
+      {/* <section className="rounded-md border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -235,9 +239,9 @@ export function OrdersListPage() {
             </button>
           </div>
         </div>
-      </section>
+      </section> */}
       {loading ? (
-        <SkeletonTable columns={7} rows={10} />
+        <SkeletonTable columns={8} rows={10} />
       ) : orders.length === 0 ? (
         <EmptyState 
           title="No orders found"
@@ -247,13 +251,14 @@ export function OrdersListPage() {
       ) : (
         <section className="rounded-md border border-slate-200 bg-white shadow-sm flex flex-col">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-left text-sm">
+            <table className="w-full min-w-[1080px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-3">Order ID</th>
                   <th className="px-5 py-3">Customer</th>
                   <th className="px-5 py-3">Items count</th>
                   <th className="px-5 py-3">Total</th>
+                  <th className="px-5 py-3">Payment</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Date</th>
                   <th className="px-5 py-3">Actions</th>
@@ -271,6 +276,15 @@ export function OrdersListPage() {
                       {order.items.reduce((sum, item) => sum + item.quantity, 0)}
                     </td>
                     <td className="px-5 py-4 text-slate-600">{formatCurrency(order.totalAmount)}</td>
+                    <td className="px-5 py-4">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        order.paymentStatus === "PAID"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}>
+                        {paymentStatusLabel(order.paymentStatus)}
+                      </span>
+                    </td>
                     <td className="px-5 py-4">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${orderStatusClass[order.status]}`}>
                         {order.status}

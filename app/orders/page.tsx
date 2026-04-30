@@ -30,6 +30,14 @@ import { SiteFooter } from "@/components/home/site-footer";
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast-context";
 
@@ -61,6 +69,12 @@ type Order = {
   createdAt: string;
   updatedAt?: string;
   totalAmount: number;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  paymentProvider?: string | null;
+  paymentId?: string | null;
+  paymentProviderOrderId?: string | null;
+  paidAt?: string | null;
   items: OrderItem[];
   address?: OrderAddress | null;
 };
@@ -122,6 +136,16 @@ function getStatusCopy(status: string) {
   if (normalized === "CANCELLED") return "Order cancelled";
   if (normalized === "CONFIRMED") return "Packing in progress";
   return "Order received";
+}
+
+function getPaymentMethodLabel(order: Order) {
+  return order.paymentMethod === "ONLINE"
+    ? order.paymentProvider || "Online payment"
+    : "Cash on Delivery";
+}
+
+function getPaymentStatusLabel(order: Order) {
+  return order.paymentStatus === "PAID" ? "Payment paid" : "Payment due at delivery";
 }
 
 function getStepIndex(status: string) {
@@ -237,6 +261,10 @@ function OrderTrackingModal({
 
         <div className="orders-modal-summary">
           <span>
+            <ReceiptText className="size-4" />
+            Payment: {getPaymentStatusLabel(order)}
+          </span>
+          <span>
             <CalendarDays className="size-4" />
             Estimated delivery: {getDeliveryEstimate(order)}
           </span>
@@ -288,6 +316,7 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus>("ALL");
   const [query, setQuery] = useState("");
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     async function fetchOrders() {
@@ -335,10 +364,14 @@ export default function OrdersPage() {
     return { delivered, active, totalSpent };
   }, [orders]);
 
-  const handleCancel = async (orderId: string) => {
-    const confirmed = window.confirm("Cancel this order? This action cannot be undone.");
-    if (!confirmed) return;
+  const handleCancel = (order: Order) => {
+    setCancelOrder(order);
+  };
 
+  const confirmCancelOrder = async () => {
+    if (!cancelOrder) return;
+
+    const orderId = cancelOrder.id;
     setCancellingOrderId(orderId);
 
     try {
@@ -348,6 +381,7 @@ export default function OrdersPage() {
           order.id === orderId ? { ...order, status: "CANCELLED" } : order,
         ),
       );
+      setCancelOrder(null);
       showToast("Order cancelled successfully.", "success");
     } catch {
       showToast("Unable to cancel this order.", "error");
@@ -562,9 +596,19 @@ export default function OrdersPage() {
 
                       <aside className="orders-summary-panel">
                         <div>
-                          <span>Total paid</span>
+                          <span>{order.paymentStatus === "PAID" ? "Total paid" : "Order total"}</span>
                           <strong>{formatCurrencyFromPaise(order.totalAmount)}</strong>
                         </div>
+                        <div>
+                          <span>Payment</span>
+                          <strong>{getPaymentMethodLabel(order)} - {getPaymentStatusLabel(order)}</strong>
+                        </div>
+                        {order.paymentStatus === "PAID" && order.paymentId ? (
+                          <div>
+                            <span>Payment ID</span>
+                            <strong>{order.paymentId}</strong>
+                          </div>
+                        ) : null}
                         <div>
                           <span>Delivery estimate</span>
                           <strong>{isDelivered ? "Delivered" : isCancelled ? "Stopped" : getDeliveryEstimate(order)}</strong>
@@ -597,7 +641,7 @@ export default function OrdersPage() {
                         type="button"
                         variant="outline"
                         className="orders-cancel-button"
-                        onClick={() => handleCancel(order.id)}
+                        onClick={() => handleCancel(order)}
                         disabled={!canCancel || cancellingOrderId === order.id}
                       >
                         <XCircle className="size-4" />
@@ -617,6 +661,59 @@ export default function OrdersPage() {
         onClose={() => setTrackingOpen(false)}
         order={trackingOrder}
       />
+
+      <Dialog open={Boolean(cancelOrder)} onOpenChange={(open) => {
+        if (!open && !cancellingOrderId) setCancelOrder(null);
+      }}>
+        <DialogContent className="overflow-hidden border-neutral-200 bg-white p-0 text-neutral-950 sm:max-w-md">
+          <DialogHeader className="p-5 pb-0">
+            <div className="mb-1 grid size-11 place-items-center rounded-full bg-red-50 text-red-600">
+              <XCircle className="size-5" />
+            </div>
+            <DialogTitle className="text-2xl font-bold leading-tight">
+              Cancel this order?
+            </DialogTitle>
+            <DialogDescription className="leading-6 text-neutral-600">
+              This will stop order #{cancelOrder?.id.slice(-8).toUpperCase()} from being processed.
+              {cancelOrder?.paymentStatus === "PAID"
+                ? " Refund or reversal details will be handled through the original payment method."
+                : " No online payment has been captured for this order."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mx-5 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-neutral-500">Order total</span>
+              <strong>{formatCurrencyFromPaise(cancelOrder?.totalAmount || 0)}</strong>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <span className="text-neutral-500">Payment</span>
+              <strong>
+                {cancelOrder ? getPaymentStatusLabel(cancelOrder) : "-"}
+              </strong>
+            </div>
+          </div>
+
+          <DialogFooter className="mx-0 mb-0 rounded-none rounded-b-xl border-neutral-200 bg-neutral-50 p-5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCancelOrder(null)}
+              disabled={Boolean(cancellingOrderId)}
+            >
+              Keep Order
+            </Button>
+            <Button
+              type="button"
+              className="bg-red-600 text-white hover:bg-red-700 hover:text-white"
+              onClick={confirmCancelOrder}
+              disabled={Boolean(cancellingOrderId)}
+            >
+              {cancellingOrderId ? "Cancelling..." : "Cancel Order"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <SiteFooter />
     </>
   );

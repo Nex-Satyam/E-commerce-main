@@ -6570,6 +6570,60 @@ select[aria-invalid="true"],
   color: #0a0a0a;
 }
 
+.cart-empty-button,
+.product-card-cta,
+.wishlist-action-button,
+.auth-submit-button,
+.searchbar-button,
+.footer-subscribe-button,
+.profile-save-button,
+.checkout-primary-action,
+.cart-summary-button,
+.orders-primary-button {
+  color: #ffffff;
+}
+
+.cart-empty-button:hover,
+.product-card-cta:hover,
+.wishlist-action-button:hover,
+.auth-submit-button:hover,
+.searchbar-button:hover,
+.footer-subscribe-button:hover,
+.profile-save-button:hover,
+.checkout-primary-action:hover,
+.cart-summary-button:hover,
+.orders-primary-button:hover {
+  color: #ffffff;
+}
+
+.cart-empty-button *,
+.product-card-cta *,
+.wishlist-action-button *,
+.auth-submit-button *,
+.searchbar-button *,
+.footer-subscribe-button *,
+.profile-save-button *,
+.checkout-primary-action *,
+.cart-summary-button *,
+.orders-primary-button * {
+  color: inherit;
+}
+
+.profile-menu-item:hover .profile-menu-item-icon,
+.profile-menu-item:focus .profile-menu-item-icon,
+.profile-menu-item[data-highlighted] .profile-menu-item-icon {
+  background: #0a0a0a;
+  color: #ffffff;
+  border-color: #0a0a0a;
+}
+
+.profile-menu-item:hover .profile-menu-item-icon svg,
+.profile-menu-item:focus .profile-menu-item-icon svg,
+.profile-menu-item[data-highlighted] .profile-menu-item-icon svg {
+  color: #ffffff;
+  stroke: currentColor;
+}
+
 @media (max-width: 640px) {
   .profile-dropdown-trigger {
     min-width: 50px;
