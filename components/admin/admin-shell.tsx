@@ -15,7 +15,7 @@ const navItems = [
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const { data: session } = useSession();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 

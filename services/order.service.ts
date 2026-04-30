@@ -238,11 +238,15 @@ export const createOrder = async ({
     return order;
   });
 
-  await Promise.all(
-    stockNotifications.map((notification) =>
-      notifyAdmins("LOW_STOCK", notification)
-    )
-  );
+  try {
+    await Promise.all(
+      stockNotifications.map((notification) =>
+        notifyAdmins("LOW_STOCK", notification)
+      )
+    );
+  } catch (error) {
+    console.error("Failed to send low-stock notifications", error);
+  }
 
   return order;
 };

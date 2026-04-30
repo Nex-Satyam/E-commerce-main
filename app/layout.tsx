@@ -25,7 +25,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={cn(displayFont.variable, bodyFont.variable, "font-sans", geist.variable)}>
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={cn(displayFont.variable, bodyFont.variable, "font-sans", geist.variable)}
+    >
       <body className="antialiased">
         <ClientProviders>
           <ClientLayout>{children}</ClientLayout>

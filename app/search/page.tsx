@@ -121,7 +121,7 @@ function normalizeProduct(product: SearchProduct): ProductItem {
 
 function SearchResults() {
   const searchParams = useSearchParams();
-  const initialQuery = searchParams.get("q") || "";
+  const initialQuery = searchParams?.get("q") || "";
   const [searchInput, setSearchInput] = useState(initialQuery);
   const [category, setCategory] = useState("");
   const [priceRange, setPriceRange] = useState("");

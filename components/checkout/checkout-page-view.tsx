@@ -359,6 +359,9 @@ export function CheckoutPageView() {
 
     setOrderDetails(finalOrderData.order || {});
     setShowSuccessModal(true);
+    queryClient.setQueryData(queryKeys.cart.items, []);
+    queryClient.setQueryData(queryKeys.cart.count, 0);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.orders });
     notify(
       finalOrderData.order?.paymentStatus === "PAID"
         ? "Order placed successfully. Payment is marked as paid."
