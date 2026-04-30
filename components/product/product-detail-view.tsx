@@ -3,10 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import { useCart } from "@/components/cart/cart-provider";
 import { useToast } from "@/components/ui/toast-context";
+import { useWishlist } from "@/components/wishlist/wishlist-provider";
+import { queryKeys } from "@/lib/query-keys";
 import {
   ArrowLeft,
   ArrowRight,
@@ -98,15 +101,12 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
     variants.length > 0 ? variants[0] : null
   );
   const [quantity, setQuantity] = useState(1);
-  const [isAdding, setIsAdding] = useState(false);
-  const [isBuying, setIsBuying] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   const { showToast } = useToast();
   const { refreshCart } = useCart();
+  const { refreshWishlistCount } = useWishlist();
+  const queryClient = useQueryClient();
   const router = useRouter();
 
   const variant = selectedVariant;
@@ -152,20 +152,55 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
     },
   ];
 
-  useEffect(() => {
-    const checkWishlist = async () => {
-      if (!product?.id) return;
+  const wishlistStateQuery = useQuery({
+    queryKey: queryKeys.product.wishlistState(product.id),
+    queryFn: async () => {
+      const res = await api.get(`/wishlist?productId=${product.id}`);
+      return Boolean(res.data?.wishlisted);
+    },
+    enabled: Boolean(product?.id),
+    placeholderData: false,
+  });
 
-      try {
-        const res = await api.get(`/wishlist?productId=${product.id}`);
-        setIsWishlisted(Boolean(res.data.wishlisted));
-      } catch (err) {
-        console.log("Wishlist check failed:", err);
-      }
-    };
+  const wishlistMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.patch("/wishlist", {
+        productId: product.id,
+      });
+      return res.data as { wishlisted?: boolean; message?: string };
+    },
+    onSuccess: (data) => {
+      const nextWishlisted = Boolean(data.wishlisted);
+      queryClient.setQueryData(
+        queryKeys.product.wishlistState(product.id),
+        nextWishlisted
+      );
+      refreshWishlistCount();
+      showToast(
+        data.message ||
+          (nextWishlisted ? "Added to wishlist" : "Removed from wishlist"),
+        "success"
+      );
+    },
+    onError: (err: unknown) => {
+      showToast(getErrorMessage(err, "Wishlist action failed"), "error");
+    },
+  });
 
-    checkWishlist();
-  }, [product?.id]);
+  const addToCartMutation = useMutation({
+    mutationFn: async (selectedVariant: ProductVariant) => {
+      await api.post("/cart", {
+        variantId: selectedVariant.id,
+        quantity,
+      });
+    },
+    onSuccess: async () => {
+      await refreshCart();
+    },
+  });
+
+  const isAdding = addToCartMutation.isPending;
+  const isBuying = addToCartMutation.isPending;
 
   const handleVariantChange = (item: ProductVariant) => {
     setSelectedVariant(item);
@@ -192,27 +227,7 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
       return;
     }
 
-    setWishlistLoading(true);
-
-    try {
-      const res = await api.patch("/wishlist", {
-        productId: product.id,
-      });
-
-      setIsWishlisted(Boolean(res.data.wishlisted));
-
-      showToast(
-        res.data.message ||
-          (res.data.wishlisted
-            ? "Added to wishlist"
-            : "Removed from wishlist"),
-        "success"
-      );
-    } catch (err: unknown) {
-      showToast(getErrorMessage(err, "Wishlist action failed"), "error");
-    } finally {
-      setWishlistLoading(false);
-    }
+    wishlistMutation.mutate();
   };
 
   const validateCartSelection = (
@@ -237,18 +252,11 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
   };
 
   const addSelectedProductToCart = async (selectedVariant: ProductVariant) => {
-    await api.post("/cart", {
-      variantId: selectedVariant.id,
-      quantity,
-    });
-
-    await refreshCart();
+    await addToCartMutation.mutateAsync(selectedVariant);
   };
 
   const handleAddToCart = async () => {
     if (!validateCartSelection(variant)) return;
-
-    setIsAdding(true);
 
     try {
       await addSelectedProductToCart(variant);
@@ -258,15 +266,11 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
         getErrorMessage(err, "Failed to add to cart"),
         "error"
       );
-    } finally {
-      setIsAdding(false);
     }
   };
 
   const handleBuyNow = async () => {
     if (!validateCartSelection(variant)) return;
-
-    setIsBuying(true);
 
     try {
       await addSelectedProductToCart(variant);
@@ -277,8 +281,6 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
         getErrorMessage(err, "Failed to add to cart"),
         "error"
       );
-    } finally {
-      setIsBuying(false);
     }
   };
 
@@ -367,21 +369,21 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
                     <button
                       type="button"
                       onClick={handleToggleWishlist}
-                      disabled={wishlistLoading}
+                      disabled={wishlistMutation.isPending}
                       className={cn(
                         "grid size-11 place-items-center rounded-full shadow-sm backdrop-blur transition-all hover:scale-105 disabled:opacity-60",
-                        isWishlisted
+                        wishlistStateQuery.data
                           ? "bg-black text-white"
                           : "bg-white/90 text-black hover:bg-white"
                       )}
                       aria-label="Toggle wishlist"
                     >
-                      {wishlistLoading ? (
+                      {wishlistMutation.isPending ? (
                         <Loader2 size={19} className="animate-spin" />
                       ) : (
                         <Heart
                           size={19}
-                          className={isWishlisted ? "fill-white" : ""}
+                          className={wishlistStateQuery.data ? "fill-white" : ""}
                         />
                       )}
                     </button>
@@ -862,3 +864,4 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
     </>
   );
 }
+  

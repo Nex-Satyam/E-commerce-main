@@ -3,6 +3,7 @@
   import Image from "next/image";
   import Link from "next/link";
   import { useEffect, useMemo, useState } from "react";
+  import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
   import { Copy, Edit, PackagePlus, Box } from "lucide-react";
   import toast from "react-hot-toast";
   import type { AdminCategory, AdminProduct, ProductListResponse } from "@/components/admin/types";
@@ -10,19 +11,17 @@
   import { SkeletonTable } from "./ui/skeleton-table";
   import { EmptyState } from "./ui/empty-state";
   import { Pagination } from "./ui/pagination";
+  import { queryKeys } from "@/lib/query-keys";
 
   const pageSize = 20;
 
   export function ProductsListPage() {
-    const [products, setProducts] = useState<AdminProduct[]>([]);
-    const [categories, setCategories] = useState<AdminCategory[]>([]);
+    const queryClient = useQueryClient();
     const [searchInput, setSearchInput] = useState("");
     const [search, setSearch] = useState("");
     const [category, setCategory] = useState("");
     const [active, setActive] = useState("");
     const [page, setPage] = useState(1);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
       const timer = window.setTimeout(() => {
@@ -32,9 +31,17 @@
       return () => window.clearTimeout(timer);
     }, [searchInput]);
 
-    useEffect(() => {
-      async function loadProducts() {
-        setLoading(true);
+    const productsQueryParams = {
+      search,
+      category,
+      active,
+      page,
+      limit: pageSize,
+    };
+
+    const productsQuery = useQuery({
+      queryKey: queryKeys.admin.products(productsQueryParams),
+      queryFn: async () => {
         const params = new URLSearchParams({
           search,
           category,
@@ -43,47 +50,31 @@
           limit: String(pageSize),
         });
         const response = await fetch(`/api/admin/products?${params.toString()}`);
-        const data = (await response.json()) as ProductListResponse;
-        setProducts(data.products);
-        setCategories(data.categories);
-        setTotal(data.total);
-        setLoading(false);
-        try {
-          setLoading(true);
-          const params = new URLSearchParams({
-            search,
-            category,
-            active,
-            page: String(page),
-            limit: String(pageSize),
-          });
-          const response = await fetch(`/api/admin/products?${params.toString()}`);
-          if (!response.ok) {
-            const err = await response.json().catch(() => ({ error: "Failed to load products" }));
-            throw new Error(err.error || "Failed to load products");
-          }
-          const data = (await response.json()) as ProductListResponse;
-          setProducts(data.products);
-          setCategories(data.categories);
-          setTotal(data.total);
-        } catch (error) {
-          toast.error(error instanceof Error ? error.message : "Failed to load products");
-        } finally {
-          setLoading(false);
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({ error: "Failed to load products" }));
+          throw new Error(err.error || "Failed to load products");
         }
-      }
+        const data = (await response.json()) as ProductListResponse;
+        return data;
+      },
+      placeholderData: (previousData) => previousData,
+    });
 
-      loadProducts();
-    }, [active, category, page, search]);
+    const products = productsQuery.data?.products ?? [];
+    const categories = productsQuery.data?.categories ?? [];
+    const total = productsQuery.data?.total ?? 0;
+    const loading = productsQuery.isLoading || productsQuery.isFetching;
 
     const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
-    async function toggleActive(product: AdminProduct, isActive: boolean) {
-      setProducts((current) =>
-        current.map((item) => (item.id === product.id ? { ...item, isActive } : item))
-      );
-
-      try {
+    const toggleActiveMutation = useMutation({
+      mutationFn: async ({
+        product,
+        isActive,
+      }: {
+        product: AdminProduct;
+        isActive: boolean;
+      }) => {
         const response = await fetch(`/api/admin/products/${product.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -91,26 +82,79 @@
         });
 
         if (!response.ok) throw new Error("Unable to update product.");
-      } catch (error) {
-        setProducts((current) =>
-          current.map((item) => (item.id === product.id ? { ...item, isActive: product.isActive } : item))
+      },
+      onMutate: async ({ product, isActive }) => {
+        await queryClient.cancelQueries({
+          queryKey: queryKeys.admin.products(productsQueryParams),
+        });
+        const previousData = queryClient.getQueryData<ProductListResponse>(
+          queryKeys.admin.products(productsQueryParams)
+        );
+
+        queryClient.setQueryData<ProductListResponse>(
+          queryKeys.admin.products(productsQueryParams),
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  products: current.products.map((item) =>
+                    item.id === product.id ? { ...item, isActive } : item
+                  ),
+                }
+              : current
+        );
+
+        return { previousData };
+      },
+      onError: (error, _variables, context) => {
+        queryClient.setQueryData(
+          queryKeys.admin.products(productsQueryParams),
+          context?.previousData
         );
         toast.error(error instanceof Error ? error.message : "Unable to update product.");
-      }
+      },
+      onSettled: () => {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.products(productsQueryParams),
+        });
+      },
+    });
+
+    const duplicateProductMutation = useMutation({
+      mutationFn: async (product: AdminProduct) => {
+        const response = await fetch(`/api/admin/products/${product.id}/duplicate`, { method: "POST" });
+
+        if (!response.ok) {
+          throw new Error("Could not duplicate product.");
+        }
+
+        return response.json() as Promise<{ product: AdminProduct }>;
+      },
+      onSuccess: (data) => {
+        queryClient.setQueryData<ProductListResponse>(
+          queryKeys.admin.products(productsQueryParams),
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  products: [data.product, ...current.products].slice(0, pageSize),
+                  total: current.total + 1,
+                }
+              : current
+        );
+        toast.success("Product duplicated.");
+      },
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : "Could not duplicate product.");
+      },
+    });
+
+    async function toggleActive(product: AdminProduct, isActive: boolean) {
+      toggleActiveMutation.mutate({ product, isActive });
     }
 
     async function duplicateProduct(product: AdminProduct) {
-      const response = await fetch(`/api/admin/products/${product.id}/duplicate`, { method: "POST" });
-
-      if (!response.ok) {
-        toast.error("Could not duplicate product.");
-        return;
-      }
-
-      const data = await response.json();
-      setProducts((current) => [data.product, ...current].slice(0, pageSize));
-      setTotal((current) => current + 1);
-      toast.success("Product duplicated.");
+      duplicateProductMutation.mutate(product);
     }
 
     return (

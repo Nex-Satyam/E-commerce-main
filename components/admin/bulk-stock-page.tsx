@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Save } from "lucide-react";
 import toast from "react-hot-toast";
+import { queryKeys } from "@/lib/query-keys";
 
 type StockRow = {
   variantId: string;
@@ -12,46 +14,33 @@ type StockRow = {
 };
 
 export function BulkStockPage() {
-  const [rows, setRows] = useState<StockRow[]>([]);
+  const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, number>>({});
-  const [saving, setSaving] = useState(false);
 
-  async function loadRows() {
-    const response = await fetch("/api/admin/products/bulk-stock");
-    const data = await response.json();
-    const nextRows = data.variants ?? [];
-    setRows(nextRows);
-    setDrafts(
-      Object.fromEntries(nextRows.map((row: StockRow) => [row.variantId, row.stock]))
-    );
-  }
+  const rowsQuery = useQuery({
+    queryKey: queryKeys.admin.bulkStock,
+    queryFn: async () => {
+      const response = await fetch("/api/admin/products/bulk-stock");
+      const data = await response.json();
+      return (data.variants ?? []) as StockRow[];
+    },
+  });
 
-  
-  useEffect(() => {
-    let isMounted = true;
-
-    fetch("/api/admin/products/bulk-stock")
-      .then((response) => response.json())
-      .then((data) => {
-        if (!isMounted) return;
-        const nextRows = data.variants ?? [];
-        setRows(nextRows);
-        setDrafts(Object.fromEntries(nextRows.map((row: StockRow) => [row.variantId, row.stock])));
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const rows = useMemo(() => rowsQuery.data ?? [], [rowsQuery.data]);
 
   const changedRows = useMemo(
-    () => rows.filter((row) => Number(drafts[row.variantId]) !== row.stock),
+    () =>
+      rows.filter(
+        (row) =>
+          Object.prototype.hasOwnProperty.call(drafts, row.variantId) &&
+          Number(drafts[row.variantId]) !== row.stock
+      ),
     [drafts, rows]
   );
 
-  async function saveChanges() {
-    setSaving(true);
-    const response = await fetch("/api/admin/products/bulk-stock", {
+  const saveStockMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/admin/products/bulk-stock", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -61,15 +50,21 @@ export function BulkStockPage() {
         })),
       }),
     });
-    setSaving(false);
 
-    if (!response.ok) {
+      if (!response.ok) throw new Error("Unable to update stock.");
+    },
+    onSuccess: async () => {
+      toast.success("Stock updated.");
+      setDrafts({});
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.bulkStock });
+    },
+    onError: () => {
       toast.error("Unable to update stock.");
-      return;
-    }
+    },
+  });
 
-    toast.success("Stock updated.");
-    await loadRows();
+  async function saveChanges() {
+    saveStockMutation.mutate();
   }
 
   return (
@@ -116,12 +111,12 @@ export function BulkStockPage() {
           <p className="text-sm text-slate-500">{changedRows.length} pending changes</p>
           <button
             type="button"
-            disabled={saving || changedRows.length === 0}
+            disabled={saveStockMutation.isPending || changedRows.length === 0}
             onClick={saveChanges}
             className="inline-flex h-10 items-center gap-2 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save className="size-4" />
-            {saving ? "Saving..." : "Save all changes"}
+            {saveStockMutation.isPending ? "Saving..." : "Save all changes"}
           </button>
         </div>
       </section>

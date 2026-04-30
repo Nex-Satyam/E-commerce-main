@@ -1,7 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useCallback, useContext } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 
 type WishlistContextValue = {
   wishlistCount: number;
@@ -11,26 +13,26 @@ type WishlistContextValue = {
 const WishlistContext = createContext<WishlistContextValue | null>(null);
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
-  const [wishlistCount, setWishlistCount] = useState(0);
+  const queryClient = useQueryClient();
 
-  const fetchWishlistCount = useCallback(async () => {
-    try {
+  const wishlistQuery = useQuery({
+    queryKey: queryKeys.wishlist,
+    queryFn: async () => {
       const res = await api.get("/wishlist");
-      setWishlistCount(Array.isArray(res.data?.wishlist) ? res.data.wishlist.length : 0);
-    } catch {
-      setWishlistCount(0);
-    }
-  }, []);
+      return Array.isArray(res.data?.wishlist) ? res.data.wishlist : [];
+    },
+    placeholderData: [],
+  });
 
-  useEffect(() => {
-    fetchWishlistCount();
-  }, [fetchWishlistCount]);
+  const refreshWishlistCount = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.wishlist });
+  }, [queryClient]);
 
   return (
     <WishlistContext.Provider
       value={{
-        wishlistCount,
-        refreshWishlistCount: fetchWishlistCount,
+        wishlistCount: wishlistQuery.data?.length ?? 0,
+        refreshWishlistCount,
       }}
     >
       {children}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, UserMinus, UserPlus, ShieldAlert, ShieldCheck, ShoppingBag, Info, Users } from "lucide-react";
 import type { AdminUser } from "@/components/admin/types";
 import { formatShortDate, roleStatusClass } from "@/components/admin/types";
@@ -10,19 +11,18 @@ import toast from "react-hot-toast";
 import { SkeletonTable } from "./ui/skeleton-table";
 import { EmptyState } from "./ui/empty-state";
 import { Pagination } from "./ui/pagination";
+import { queryKeys } from "@/lib/query-keys";
 
 const pageSize = 20;
 
 export function UsersListPage() {
   const { data: session } = useSession();
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -32,75 +32,83 @@ export function UsersListPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  async function loadUsers() {
-  setLoading(true);
+  const usersQueryParams = { search, page, limit: pageSize };
+
+  const usersQuery = useQuery({
+    queryKey: queryKeys.admin.users(usersQueryParams),
+    queryFn: async () => {
     const params = new URLSearchParams({
       search,
       page: String(page),
       limit: String(pageSize),
     });
-    try {
       const response = await fetch(`/api/admin/users?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to load users.");
       const data = await response.json();
-      setUsers(data.users ?? []);
-      setTotal(data.total ?? 0);
-    } catch (error) {
-      console.error("Failed to load users:", error);
-      toast.error("Failed to load users.");
-    } finally {
-      setLoading(false);
-    }
-  }
+      return {
+        users: (data.users ?? []) as AdminUser[],
+        total: Number(data.total ?? 0),
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  useEffect(() => {
-    loadUsers();
-  }, [page, search]);
+  const users = usersQuery.data?.users ?? [];
+  const total = usersQuery.data?.total ?? 0;
+  const loading = usersQuery.isLoading || usersQuery.isFetching;
+
+  const updateUserMutation = useMutation({
+    mutationFn: async ({
+      user,
+      payload,
+    }: {
+      user: AdminUser;
+      payload: Partial<Pick<AdminUser, "isBanned" | "role">>;
+    }) => {
+      setIsUpdating(user.id);
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Update failed.");
+      }
+
+      return { user, payload };
+    },
+    onSuccess: ({ user, payload }) => {
+      if ("isBanned" in payload) {
+        toast.success(`User ${user.isBanned ? "unbanned" : "banned"} successfully.`);
+      } else {
+        toast.success("User promoted to Admin.");
+      }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(usersQueryParams) });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Network error.");
+    },
+    onSettled: () => {
+      setIsUpdating(null);
+    },
+  });
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
   async function handleToggleBan(user: AdminUser) {
-    setIsUpdating(user.id);
-  // Optimistic UI could be applied here if we want, but since it's banning, maybe wait for response
-    try {
-      const response = await fetch(`/api/admin/users/${user.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isBanned: !user.isBanned }),
-      });
-      if (response.ok) {
-        toast.success(`User ${user.isBanned ? "unbanned" : "banned"} successfully.`);
-        loadUsers();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Update failed.");
-      }
-    } catch (error) {
-      toast.error("Network error.");
-    } finally {
-      setIsUpdating(null);
-    }
+    updateUserMutation.mutate({
+      user,
+      payload: { isBanned: !user.isBanned },
+    });
   }
 
   async function handlePromote(user: AdminUser) {
-    setIsUpdating(user.id);
-    try {
-      const response = await fetch(`/api/admin/users/${user.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "ADMIN" }),
-      });
-      if (response.ok) {
-        toast.success("User promoted to Admin.");
-        loadUsers();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Update failed.");
-      }
-    } catch (error) {
-      toast.error("Network error.");
-    } finally {
-      setIsUpdating(null);
-    }
+    updateUserMutation.mutate({
+      user,
+      payload: { role: "ADMIN" },
+    });
   }
 
   return (

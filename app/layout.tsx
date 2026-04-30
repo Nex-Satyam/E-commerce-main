@@ -3,7 +3,7 @@ import { Playfair_Display, Manrope, Geist } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import ClientLayout from "@/components/ClientLayout";
-import ClientProviders  from "@/components/auth/client-providers";
+import ClientProviders from "@/components/auth/client-providers";
 import Script from "next/script";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});

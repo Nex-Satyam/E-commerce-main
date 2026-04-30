@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   CartesianGrid,
   Line,
@@ -13,6 +14,7 @@ import {
 } from "recharts";
 import type { OrderStatus } from "@/components/admin/types";
 import { formatCurrency, formatShortDate } from "@/components/admin/types";
+import { queryKeys } from "@/lib/query-keys";
 
 type Stats = {
   totalOrders: number;
@@ -50,16 +52,16 @@ const statusClass: Record<OrderStatus, string> = {
 
 export function DashboardPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [revenue, setRevenue] = useState<RevenuePoint[]>([]);
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [isChartReady, setIsChartReady] = useState(false);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setIsChartReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
-    async function loadDashboard() {
+  const dashboardQuery = useQuery({
+    queryKey: queryKeys.admin.dashboard,
+    queryFn: async () => {
       const [statsResponse, revenueResponse, topProductsResponse, ordersResponse] = await Promise.all([
         fetch("/api/admin/stats"),
         fetch("/api/admin/stats/revenue?days=7"),
@@ -72,16 +74,19 @@ export function DashboardPage() {
       const topProductsData = await topProductsResponse.json();
       const ordersData = await ordersResponse.json();
 
-      setStats(statsData);
-      setRevenue(revenueData);
-      setTopProducts(topProductsData);
-      setRecentOrders(ordersData.orders ?? []);
-    }
+      return {
+        stats: statsData as Stats,
+        revenue: revenueData as RevenuePoint[],
+        topProducts: topProductsData as TopProduct[],
+        recentOrders: (ordersData.orders ?? []) as RecentOrder[],
+      };
+    },
+  });
 
-    loadDashboard();
-
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+  const stats = dashboardQuery.data?.stats ?? null;
+  const revenue = dashboardQuery.data?.revenue ?? [];
+  const topProducts = dashboardQuery.data?.topProducts ?? [];
+  const recentOrders = dashboardQuery.data?.recentOrders ?? [];
 
   const chartData = useMemo(
     () =>

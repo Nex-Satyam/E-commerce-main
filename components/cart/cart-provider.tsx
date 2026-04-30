@@ -4,14 +4,15 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   ReactNode,
 } from "react";
 import { useSession } from "next-auth/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 
 export type CartItem = {
   productSlug: string;
@@ -44,41 +45,41 @@ export function useCart() {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { status } = useSession();
+  const queryClient = useQueryClient();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [cartItemCount, setCartItemCount] = useState(0);
 
-  const refreshCart = useCallback(async () => {
-    if (status === "loading") return;
-
-    if (status !== "authenticated") {
-      setCartItems([]);
-      setCartItemCount(0);
-      return;
-    }
-
-    try {
+  const cartCountQuery = useQuery({
+    queryKey: queryKeys.cart.count,
+    queryFn: async () => {
       const res = await api.get("/cart");
       const apiCartItems: CartApiItem[] = Array.isArray(res.data.cart)
         ? res.data.cart
         : [];
-      const nextCount = apiCartItems.reduce(
+
+      return apiCartItems.reduce(
         (sum, item) => sum + Number(item.quantity || 0),
         0
       );
+    },
+    enabled: status === "authenticated",
+    placeholderData: 0,
+  });
 
-      setCartItemCount(nextCount);
-    } catch {
-      setCartItemCount(0);
+  const cartItemCount =
+    status === "authenticated" ? cartCountQuery.data ?? 0 : 0;
+
+  const refreshCart = useCallback(async () => {
+    if (status !== "authenticated") {
+      setCartItems([]);
+      queryClient.setQueryData(queryKeys.cart.count, 0);
+      return;
     }
-  }, [status]);
 
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void refreshCart();
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [refreshCart]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.cart.count }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.cart.items }),
+    ]);
+  }, [queryClient, status]);
 
   const addToCart = useCallback((item: CartItem) => {
     setCartItems((prev) => {
@@ -96,8 +97,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, item];
     });
-    setCartItemCount((count) => count + item.quantity);
-  }, []);
+    queryClient.setQueryData<number>(
+      queryKeys.cart.count,
+      (count = 0) => count + item.quantity
+    );
+  }, [queryClient]);
 
   const removeFromCart = useCallback(
     (productSlug: string, size: string, color: string) => {
@@ -113,15 +117,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
             i.productSlug !== productSlug || i.size !== size || i.color !== color
         )
       );
-      setCartItemCount((count) => Math.max(0, count - removedQuantity));
+      queryClient.setQueryData<number>(queryKeys.cart.count, (count = 0) =>
+        Math.max(0, count - removedQuantity)
+      );
     },
-    [cartItems]
+    [cartItems, queryClient]
   );
 
   const clearCart = useCallback(() => {
     setCartItems([]);
-    setCartItemCount(0);
-  }, []);
+    queryClient.setQueryData(queryKeys.cart.count, 0);
+  }, [queryClient]);
 
   const getCartItemCount = useCallback(() => cartItemCount, [cartItemCount]);
 

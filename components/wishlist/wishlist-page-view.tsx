@@ -16,11 +16,13 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { CtaButton } from "@/components/home/cta-button";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import api from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -102,38 +104,37 @@ function WishlistLoadingSkeleton() {
 }
 
 export default function WishlistPageView() {
-  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [removing, setRemoving] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const { refreshWishlistCount } = useWishlist();
 
-  useEffect(() => {
-    async function fetchWishlist() {
-      setLoading(true);
-      try {
-        const res = await api.get("/wishlist");
-        setWishlist(res.data?.wishlist || []);
-      } catch {
-        setWishlist([]);
-      } finally {
-        setLoading(false);
-      }
-    }
+  const { data: wishlist = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.wishlist,
+    queryFn: async () => {
+      const res = await api.get("/wishlist");
+      return (res.data?.wishlist || []) as WishlistItem[];
+    },
+    placeholderData: [],
+  });
 
-    void fetchWishlist();
-  }, []);
+  const removeWishlistMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      await api.delete(`/wishlist?productId=${productId}`);
+      return productId;
+    },
+    onSuccess: (productId) => {
+      queryClient.setQueryData<WishlistItem[]>(queryKeys.wishlist, (current = []) =>
+        current.filter((item) => item.productId !== productId)
+      );
+      queryClient.setQueryData(
+        queryKeys.product.wishlistState(productId),
+        false
+      );
+      refreshWishlistCount();
+    },
+  });
 
   const handleRemove = async (productId: string) => {
-    setRemoving(productId);
-    try {
-      await api.delete(`/wishlist?productId=${productId}`);
-      setWishlist((prev) => prev.filter((item) => item.productId !== productId));
-      refreshWishlistCount();
-    } catch {
-      // Keep the item visible if the request fails.
-    } finally {
-      setRemoving(null);
-    }
+    removeWishlistMutation.mutate(productId);
   };
 
   const wishlistStats = useMemo(() => {
@@ -245,9 +246,13 @@ export default function WishlistPageView() {
                           aria-label={`Remove ${product.name} from wishlist`}
                           aria-pressed="true"
                           onClick={() => handleRemove(product.id)}
-                          disabled={removing === product.id}
+                          disabled={
+                            removeWishlistMutation.isPending &&
+                            removeWishlistMutation.variables === product.id
+                          }
                         >
-                          {removing === product.id ? (
+                          {removeWishlistMutation.isPending &&
+                          removeWishlistMutation.variables === product.id ? (
                             <Loader2 className="size-4 animate-spin" />
                           ) : (
                             <X className="size-4" />

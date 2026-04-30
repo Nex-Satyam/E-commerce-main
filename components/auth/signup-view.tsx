@@ -6,7 +6,8 @@ import { BadgeCheck, CheckCircle2, Eye, EyeOff, Loader2, LockKeyhole, Mail, Phon
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import axios from "axios";
+import { useMutation } from "@tanstack/react-query";
+import api from "@/lib/axios";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -89,17 +90,25 @@ export function SignupView() {
   ];
   const passwordScore = passwordChecks.filter((check) => check.valid).length;
 
-  const handleSignup = async (form: SignupFormValues) => {
-    try {
-      const res = await axios.post("/api/register", {
+  const signupMutation = useMutation({
+    mutationFn: async (form: SignupFormValues) => {
+      const res = await api.post("/register", {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
         phone: form.phone.replace(/\s/g, ""),
       });
 
-      if (res.data.error) {
-        setError("root", { message: res.data.error });
+      return res.data;
+    },
+  });
+
+  const handleSignup = async (form: SignupFormValues) => {
+    try {
+      const data = await signupMutation.mutateAsync(form);
+
+      if (data.error) {
+        setError("root", { message: data.error });
         return;
       }
 

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -309,8 +311,7 @@ function OrderSkeleton() {
 
 export default function OrdersPage() {
   const { showToast } = useToast();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [statusFilter, setStatusFilter] = useState<OrderStatus>("ALL");
@@ -318,20 +319,42 @@ export default function OrdersPage() {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
 
-  useEffect(() => {
-    async function fetchOrders() {
-      try {
-        const res = await axios.get("/api/order/user");
-        setOrders(Array.isArray(res.data) ? res.data : []);
-      } catch {
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    }
+  const ordersQuery = useQuery({
+    queryKey: queryKeys.orders,
+    queryFn: async () => {
+      const res = await api.get("/order/user");
+      return Array.isArray(res.data) ? (res.data as Order[]) : [];
+    },
+    placeholderData: [],
+  });
 
-    void fetchOrders();
-  }, []);
+  const orders = ordersQuery.data || [];
+  const loading = ordersQuery.isLoading;
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      await api.post("/order/user", { orderId, action: "cancel" });
+      return orderId;
+    },
+    onMutate: (orderId) => {
+      setCancellingOrderId(orderId);
+    },
+    onSuccess: (orderId) => {
+      queryClient.setQueryData<Order[]>(queryKeys.orders, (current = []) =>
+        current.map((order) =>
+          order.id === orderId ? { ...order, status: "CANCELLED" } : order
+        )
+      );
+      setCancelOrder(null);
+      showToast("Order cancelled successfully.", "success");
+    },
+    onError: () => {
+      showToast("Unable to cancel this order.", "error");
+    },
+    onSettled: () => {
+      setCancellingOrderId(null);
+    },
+  });
 
   const filteredOrders = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -374,20 +397,7 @@ export default function OrdersPage() {
     const orderId = cancelOrder.id;
     setCancellingOrderId(orderId);
 
-    try {
-      await axios.post("/api/order/user", { orderId, action: "cancel" });
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId ? { ...order, status: "CANCELLED" } : order,
-        ),
-      );
-      setCancelOrder(null);
-      showToast("Order cancelled successfully.", "success");
-    } catch {
-      showToast("Unable to cancel this order.", "error");
-    } finally {
-      setCancellingOrderId(null);
-    }
+    cancelOrderMutation.mutate(orderId);
   };
 
   const handleTrack = (order: Order) => {

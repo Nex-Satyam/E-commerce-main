@@ -6,7 +6,9 @@ import { Home, Loader2, MapPin, Phone, User } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import axios from "axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 
 type AddressFormProps = {
   onComplete: (id?: string) => void;
@@ -42,6 +44,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export function AddressForm({ onComplete }: AddressFormProps) {
+  const queryClient = useQueryClient();
   const {
     register,
     handleSubmit,
@@ -61,9 +64,9 @@ export function AddressForm({ onComplete }: AddressFormProps) {
     },
   });
 
-  const onSubmit = async (form: AddressFormValues) => {
-    try {
-      const res = await axios.post("/api/address", {
+  const createAddressMutation = useMutation({
+    mutationFn: async (form: AddressFormValues) => {
+      const res = await api.post("/address", {
         fullName: form.fullName,
         phone: form.phone,
         line1: form.line1,
@@ -73,21 +76,30 @@ export function AddressForm({ onComplete }: AddressFormProps) {
         pincode: form.pincode,
       });
 
-      if (res.data.success) {
-        const newAddressId =
-          res.data.address?.id || res.data.data?.id || res.data.id;
-
+      return res.data;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        const newAddressId = data.address?.id || data.data?.id || data.id;
+        void queryClient.invalidateQueries({ queryKey: queryKeys.addresses });
         onComplete(newAddressId);
       } else {
         setError("root", {
-          message: res.data.error || "Failed to save address",
+          message: data.error || "Failed to save address",
         });
       }
-    } catch (err: unknown) {
+    },
+    onError: (err: unknown) => {
       setError("root", {
         message: getErrorMessage(err, "Failed to save address"),
       });
-    }
+    },
+  });
+
+  const onSubmit = async (form: AddressFormValues) => {
+    try {
+      await createAddressMutation.mutateAsync(form);
+    } catch {}
   };
 
   return (
