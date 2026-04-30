@@ -1,6 +1,29 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+
+type ProductImageInput = {
+  url: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+};
+
+type ProductVariantInput = {
+  name: string;
+  sku: string;
+  price: number | string;
+  stock: number | string;
+};
+
+type ProductRequestBody = {
+  name: string;
+  description?: string;
+  categoryId: string;
+  isActive?: boolean;
+  images?: ProductImageInput[];
+  variants?: ProductVariantInput[];
+};
 
 
 
@@ -15,7 +38,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(params.get("page") ?? 1));
     const limit = Math.max(1, Number(params.get("limit") ?? 20));
 
-    const where: any = {};
+    const where: Prisma.ProductWhereInput = {};
     if (search) {
       where.name = { contains: search, mode: "insensitive" };
     }
@@ -61,10 +84,11 @@ export async function GET(request: NextRequest) {
       limit,
       categories,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching products:", error);
+    const message = error instanceof Error ? error.message : "Failed to fetch products";
     return NextResponse.json(
-      { error: error.message || "Failed to fetch products" },
+      { error: message },
       { status: 500 }
     );
   }
@@ -76,9 +100,9 @@ function generateSlug(name: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as ProductRequestBody;
     
-    let baseSlug = generateSlug(body.name);
+    const baseSlug = generateSlug(body.name);
     let slug = baseSlug;
     let counter = 1;
     
@@ -95,14 +119,14 @@ export async function POST(request: NextRequest) {
         categoryId: body.categoryId,
         isActive: body.isActive ?? true,
         images: {
-          create: body.images?.map((img: any, idx: number) => ({
+          create: body.images?.map((img, idx) => ({
             url: img.url,
             isPrimary: img.isPrimary || false,
             sortOrder: img.sortOrder ?? idx,
           })) || [],
         },
         variants: {
-          create: body.variants?.map((v: any) => ({
+          create: body.variants?.map((v) => ({
             name: v.name,
             sku: v.sku,
             price: Math.round(Number(v.price) * 100), 
@@ -125,8 +149,9 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json({ product: formattedProduct }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating product:", error);
-    return NextResponse.json({ error: error.message || "Failed to create product" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to create product";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

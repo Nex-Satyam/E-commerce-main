@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Search, UserMinus, UserPlus, ShieldAlert, ShieldCheck, ShoppingBag, Info, Users } from "lucide-react";
 import type { AdminUser } from "@/components/admin/types";
 import { formatShortDate, roleStatusClass } from "@/components/admin/types";
@@ -32,8 +32,8 @@ export function UsersListPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  async function loadUsers() {
-  setLoading(true);
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
     const params = new URLSearchParams({
       search,
       page: String(page),
@@ -50,11 +50,14 @@ export function UsersListPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, search]);
 
   useEffect(() => {
-    loadUsers();
-  }, [page, search]);
+    const timer = window.setTimeout(() => {
+      void loadUsers();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadUsers]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
@@ -74,7 +77,7 @@ export function UsersListPage() {
         const error = await response.json();
         toast.error(error.error || "Update failed.");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error.");
     } finally {
       setIsUpdating(null);
@@ -96,7 +99,7 @@ export function UsersListPage() {
         const error = await response.json();
         toast.error(error.error || "Update failed.");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error.");
     } finally {
       setIsUpdating(null);
