@@ -35,6 +35,7 @@ export function formatAdminOrder(order: AdminOrderWithRelations) {
     ...order,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
+    paidAt: order.paidAt?.toISOString() ?? null,
     totalAmount: order.totalAmount / 100,
     addressText,
     items: order.items.map((item) => ({

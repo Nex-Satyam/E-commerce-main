@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/components/cart/cart-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { CtaButton } from "@/components/home/cta-button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type CartApiItem = {
   id: string;
@@ -54,6 +55,10 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function formatCurrencyFromPaise(value: number) {
+  return formatCurrency(value / 100);
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   if (typeof error === "object" && error !== null && "response" in error) {
     const response = (
@@ -68,6 +73,97 @@ function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) return error.message;
 
   return fallback;
+}
+
+function CartLoadingSkeleton() {
+  return (
+    <main className="cart-page" aria-busy="true" aria-label="Loading cart">
+      <div className="cart-breadcrumb">
+        <Skeleton className="h-5 w-36 bg-neutral-200" />
+        <Skeleton className="h-5 w-4 bg-neutral-200" />
+        <Skeleton className="h-5 w-14 bg-neutral-200" />
+      </div>
+
+      <section className="cart-hero">
+        <div className="grid gap-3">
+          <Skeleton className="h-4 w-28 rounded-full bg-neutral-200" />
+          <Skeleton className="h-12 w-full max-w-md bg-neutral-200" />
+          <Skeleton className="h-5 w-full max-w-xl bg-neutral-200" />
+          <Skeleton className="h-5 w-4/5 max-w-lg bg-neutral-200" />
+        </div>
+        <div className="cart-hero-panel">
+          <Skeleton className="h-6 w-28 bg-neutral-700" />
+          <Skeleton className="h-6 w-36 bg-neutral-700" />
+        </div>
+      </section>
+
+      <section className="cart-trust-strip">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-16 rounded-full bg-neutral-200" />
+        ))}
+      </section>
+
+      <section className="cart-layout">
+        <div className="cart-main">
+          <div className="cart-progress-card">
+            <div className="grid gap-2">
+              <Skeleton className="h-5 w-56 bg-neutral-200" />
+              <Skeleton className="h-4 w-80 max-w-full bg-neutral-200" />
+            </div>
+            <Skeleton className="h-3 w-full rounded-full bg-neutral-200" />
+          </div>
+
+          <div className="cart-item-list">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Card key={index} className="cart-item-card py-0 shadow-none">
+                <CardContent className="cart-item-content">
+                  <Skeleton className="h-[180px] w-[180px] max-w-full rounded-2xl bg-neutral-200" />
+                  <div className="cart-item-copy">
+                    <div className="cart-item-info grid gap-3">
+                      <Skeleton className="h-7 w-56 bg-neutral-200" />
+                      <Skeleton className="h-4 w-full max-w-md bg-neutral-200" />
+                    </div>
+                    <div className="cart-item-variants">
+                      <Skeleton className="h-9 w-44 rounded-full bg-neutral-200" />
+                      <Skeleton className="h-9 w-32 rounded-full bg-neutral-200" />
+                      <Skeleton className="h-9 w-28 rounded-full bg-neutral-200" />
+                    </div>
+                  </div>
+                  <div className="cart-item-actions">
+                    <Skeleton className="h-12 w-36 rounded-full bg-neutral-200" />
+                    <Skeleton className="mt-5 h-16 w-40 bg-neutral-200" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <aside className="cart-summary">
+          <Card className="cart-summary-card py-0 shadow-none">
+            <CardContent className="cart-summary-content">
+              <Skeleton className="h-28 rounded-3xl bg-neutral-800" />
+              <div className="cart-summary-lines">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index}>
+                    <Skeleton className="h-5 w-24 bg-neutral-200" />
+                    <Skeleton className="h-5 w-28 bg-neutral-200" />
+                  </div>
+                ))}
+              </div>
+              <Skeleton className="h-20 rounded-2xl bg-neutral-200" />
+              <Skeleton className="h-14 rounded-full bg-neutral-800" />
+              <div className="cart-summary-timeline">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Skeleton key={index} className="h-8 w-full bg-neutral-200" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+      </section>
+    </main>
+  );
 }
 
 export default function CartPageView() {
@@ -124,10 +220,10 @@ export default function CartPageView() {
   const hasItems = items.length > 0;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  const freeShippingThreshold = 180;
+  const freeShippingThreshold = 18000;
   const amountToFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
-  const shipping = hasItems && subtotal < freeShippingThreshold ? 12 : 0;
-  const tax = hasItems ? Number((subtotal * 0.08).toFixed(2)) : 0;
+  const shipping = hasItems && subtotal < freeShippingThreshold ? 1200 : 0;
+  const tax = hasItems ? Math.round(subtotal * 0.08) : 0;
   const orderTotal = subtotal + shipping + tax;
   const freeShippingProgress = hasItems
     ? Math.min(100, (subtotal / freeShippingThreshold) * 100)
@@ -153,16 +249,7 @@ export default function CartPageView() {
   };
 
   if (loading) {
-    return (
-      <main className="cart-page cart-page-loading">
-        <Card className="cart-loading-card py-0 shadow-none">
-          <CardContent className="cart-loading-content">
-            <Loader2 className="animate-spin" />
-            <span>Loading your cart...</span>
-          </CardContent>
-        </Card>
-      </main>
-    );
+    return <CartLoadingSkeleton />;
   }
 
   return (
@@ -201,7 +288,7 @@ export default function CartPageView() {
       <section className="cart-trust-strip">
         <span>
           <Truck className="size-4" />
-          Free delivery above {formatCurrency(freeShippingThreshold)}
+          Free delivery above {formatCurrencyFromPaise(freeShippingThreshold)}
         </span>
         <span>
           <PackageCheck className="size-4" />
@@ -223,7 +310,7 @@ export default function CartPageView() {
                 <p className="font-semibold">
                   {amountToFreeShipping === 0
                     ? "You unlocked free delivery."
-                    : `${formatCurrency(amountToFreeShipping)} away from free delivery.`}
+                    : `${formatCurrencyFromPaise(amountToFreeShipping)} away from free delivery.`}
                 </p>
                 <span>Cart value updates automatically with quantity changes.</span>
               </div>
@@ -270,8 +357,8 @@ export default function CartPageView() {
                       </div>
 
                       <div className="cart-item-mobile-price">
-                        <span>{formatCurrency(item.unitPrice)} each</span>
-                        <strong>{formatCurrency(item.totalPrice)}</strong>
+                        <span>{formatCurrencyFromPaise(item.unitPrice)} each</span>
+                        <strong>{formatCurrencyFromPaise(item.totalPrice)}</strong>
                       </div>
                     </div>
 
@@ -320,8 +407,8 @@ export default function CartPageView() {
                       </div>
 
                       <div className="cart-price-block">
-                        <span>{formatCurrency(item.unitPrice)} each</span>
-                        <strong>{formatCurrency(item.totalPrice)}</strong>
+                        <span>{formatCurrencyFromPaise(item.unitPrice)} each</span>
+                        <strong>{formatCurrencyFromPaise(item.totalPrice)}</strong>
                       </div>
                     </div>
                   </CardContent>
@@ -359,21 +446,21 @@ export default function CartPageView() {
               <div className="cart-summary-lines">
                 <div>
                   <span>Subtotal</span>
-                  <strong>{formatCurrency(subtotal)}</strong>
+                  <strong>{formatCurrencyFromPaise(subtotal)}</strong>
                 </div>
                 <div>
                   <span>Shipping</span>
-                  <strong>{shipping === 0 ? "Free" : formatCurrency(shipping)}</strong>
+                  <strong>{shipping === 0 ? "Free" : formatCurrencyFromPaise(shipping)}</strong>
                 </div>
                 <div>
                   <span>Estimated Tax</span>
-                  <strong>{formatCurrency(tax)}</strong>
+                  <strong>{formatCurrencyFromPaise(tax)}</strong>
                 </div>
               </div>
 
               <div className="cart-summary-total">
                 <span>Total</span>
-                <strong>{formatCurrency(orderTotal)}</strong>
+                <strong>{formatCurrencyFromPaise(orderTotal)}</strong>
               </div>
 
               <Link
@@ -399,7 +486,7 @@ export default function CartPageView() {
               <div className="cart-summary-notes">
                 <span>
                   <Truck size={16} /> Free delivery above{" "}
-                  {formatCurrency(freeShippingThreshold)}
+                  {formatCurrencyFromPaise(freeShippingThreshold)}
                 </span>
                 <span>
                   <ShieldCheck size={16} /> Secure checkout protected end to end

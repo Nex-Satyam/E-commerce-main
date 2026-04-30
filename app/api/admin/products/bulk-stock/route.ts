@@ -19,7 +19,7 @@ export async function GET() {
         stock: v.stock,
       })),
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -45,6 +45,7 @@ export async function PATCH(request: NextRequest) {
         await notifyAdmins("LOW_STOCK", {
           productName: variant.product.name,
           variantName: variant.name,
+          stock: variant.stock,
         });
       }
     }

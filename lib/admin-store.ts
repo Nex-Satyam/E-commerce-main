@@ -16,6 +16,12 @@ export type AdminOrder = {
   createdAt: string;
   addressText?: string;
   adminNote?: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  paymentProvider?: string | null;
+  paymentId?: string | null;
+  paymentProviderOrderId?: string | null;
+  paidAt?: string | null;
   items: Array<{
     id: string;
     productId?: string;
@@ -73,11 +79,6 @@ type ProductPayload = {
 
 const now = new Date();
 const dayMs = 24 * 60 * 60 * 1000;
-
-function isoDaysAgo(days: number) {
-  const date = new Date(now.getTime() - days * dayMs);
-  return date.toISOString();
-}
 
 function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;

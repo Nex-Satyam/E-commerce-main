@@ -8,8 +8,11 @@ type DeliveryMethod = "standard" | "express";
 type RazorpayError = {
   statusCode?: number;
   error?: {
+    code?: string;
     description?: string;
     reason?: string;
+    field?: string;
+    step?: string;
   };
   message?: string;
 };
@@ -34,12 +37,38 @@ function getCheckoutAmountPaise({
 function getRazorpayErrorMessage(error: unknown) {
   const razorpayError = error as RazorpayError;
 
-  return (
+  const rawMessage =
     razorpayError.error?.description ||
     razorpayError.error?.reason ||
     razorpayError.message ||
-    "Payment order creation failed"
-  );
+    "Payment order creation failed";
+  const normalizedMessage = rawMessage.toLowerCase();
+
+  if (
+    normalizedMessage.includes("minimum") ||
+    normalizedMessage.includes("at least") ||
+    normalizedMessage.includes("less than")
+  ) {
+    return "Online payment cannot be started because the order amount is below Razorpay's minimum limit. Please add items worth at least INR 1.00, or choose Cash on Delivery if available.";
+  }
+
+  if (
+    normalizedMessage.includes("maximum") ||
+    normalizedMessage.includes("exceed") ||
+    normalizedMessage.includes("limit")
+  ) {
+    return "Online payment cannot be started because this amount exceeds the limit allowed by Razorpay or the selected bank/payment method. Try Cash on Delivery, reduce the order value, or contact support for a higher payment limit.";
+  }
+
+  return rawMessage;
+}
+
+function formatCurrencyFromPaise(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(value / 100);
 }
 
 export async function POST(req: Request) {
@@ -90,11 +119,39 @@ export async function POST(req: Request) {
       );
     }
 
+    const unavailableItem = cartItems.find(
+      (item) => item.variant.stock < item.quantity
+    );
+
+    if (unavailableItem) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            unavailableItem.variant.stock <= 0
+              ? "One or more cart items are out of stock"
+              : `Only ${unavailableItem.variant.stock} item(s) available for ${unavailableItem.variant.name}`,
+        },
+        { status: 409 }
+      );
+    }
+
     const subtotal = cartItems.reduce(
       (sum, item) => sum + item.quantity * item.variant.price,
       0
     );
     const amount = getCheckoutAmountPaise({ subtotal, deliveryMethod, giftWrap });
+
+    if (amount < 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Online payment cannot be started because Razorpay requires a minimum payment amount of INR 1.00.",
+        },
+        { status: 400 }
+      );
+    }
 
     const razorpay = new Razorpay({
       key_id: keyId,
@@ -111,6 +168,7 @@ export async function POST(req: Request) {
       success: true,
       keyId,
       order,
+      message: `Payment session created for ${formatCurrencyFromPaise(amount)}. Complete payment in the Razorpay popup.`,
     });
   } catch (error) {
     console.error("Razorpay create-order error:", getRazorpayErrorMessage(error));

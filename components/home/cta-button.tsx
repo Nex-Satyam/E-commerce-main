@@ -17,7 +17,7 @@ export function CtaButton({
       className={cn(
         "rounded-full px-5 py-5 text-sm font-semibold shadow-none transition-transform hover:-translate-y-0.5",
         tone === "dark" &&
-          "bg-[var(--text)] text-[var(--primary-foreground)] hover:bg-[color:var(--ink-soft)]",
+          "bg-[#0a0a0a] text-white hover:bg-[#262626] hover:text-white",
         tone === "light" &&
           "border-[color:var(--border)] bg-[var(--card)] text-[var(--text)] hover:bg-[var(--muted)]",
         className,
