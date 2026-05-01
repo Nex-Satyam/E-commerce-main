@@ -2,30 +2,47 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Bell } from "lucide-react";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NotificationsDropdown } from "./notifications-dropdown";
+import { queryKeys } from "@/lib/query-keys";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function NotificationsBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
-  // Poll unread count every 30 seconds
-  const { data: countData, mutate: mutateCount } = useSWR(
-    "/api/notifications/unread-count",
-    fetcher,
-    { refreshInterval: 30000 }
-  );
+  const countQuery = useQuery({
+    queryKey: queryKeys.notifications.unreadCount,
+    queryFn: () => fetcher("/api/notifications/unread-count"),
+    refetchInterval: 30000,
+  });
 
-  // Fetch last 10 notifications
-  const { data: listData, mutate: mutateList } = useSWR(
-    "/api/notifications?limit=10",
-    fetcher
-  );
+  const listQuery = useQuery({
+    queryKey: queryKeys.notifications.list(10),
+    queryFn: () => fetcher("/api/notifications?limit=10"),
+  });
 
-  const unreadCount = countData?.count ?? 0;
-  const notifications = listData?.notifications ?? [];
+  const unreadCount = countQuery.data?.count ?? 0;
+  const notifications = listQuery.data?.notifications ?? [];
+
+  const invalidateNotifications = () => {
+    void queryClient.invalidateQueries({
+      queryKey: ["notifications"],
+    });
+  };
+
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/notifications/${id}/read`, { method: "PATCH" }),
+    onSuccess: invalidateNotifications,
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: () => fetch("/api/notifications/read-all", { method: "PATCH" }),
+    onSuccess: invalidateNotifications,
+  });
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,23 +55,11 @@ export function NotificationsBell() {
   }, []);
 
   async function handleMarkRead(id: string) {
-    try {
-      await fetch(`/api/notifications/${id}/read`, { method: "PATCH" });
-      mutateCount();
-      mutateList();
-    } catch (error) {
-      console.error("Failed to mark notification as read:", error);
-    }
+    markReadMutation.mutate(id);
   }
 
   async function handleMarkAllRead() {
-    try {
-      await fetch("/api/notifications/read-all", { method: "PATCH" });
-      mutateCount();
-      mutateList();
-    } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
-    }
+    markAllReadMutation.mutate();
   }
 
   return (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 
 import axios from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -167,6 +169,7 @@ export function CheckoutPageView() {
   const router = useRouter();
   const { refreshCart } = useCart();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
 
   const [step, setStep] = useState(0);
   const [deliveryMethod, setDeliveryMethod] =
@@ -175,72 +178,57 @@ export function CheckoutPageView() {
   const [deliverySlot, setDeliverySlot] = useState("Morning");
   const [giftWrap, setGiftWrap] = useState(true);
 
-  const [cartItems, setCartItems] = useState<CartApiItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const [addresses, setAddresses] = useState<CheckoutAddress[]>([]);
   const [addressId, setAddressId] = useState<string | null>(null);
-  const [addressLoading, setAddressLoading] = useState(true);
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchAddresses = async (selectId?: string, moveNext = false) => {
-    setAddressLoading(true);
+  const cartQuery = useQuery({
+    queryKey: queryKeys.cart.items,
+    queryFn: async () => {
+      const res = await axios.get("/cart");
+      return (res.data.cart || []) as CartApiItem[];
+    },
+  });
 
-    try {
+  const addressesQuery = useQuery({
+    queryKey: queryKeys.addresses,
+    queryFn: async () => {
       const res = await axios.get("/address");
-      const addrs = res.data.addresses || [];
+      return (res.data.addresses || []) as CheckoutAddress[];
+    },
+  });
 
-      setAddresses(addrs);
+  const cartItems = cartQuery.data || [];
+  const addresses = addressesQuery.data || [];
+  const loading = cartQuery.isLoading;
+  const error = cartQuery.isError ? "Failed to load cart items" : null;
+  const addressLoading = addressesQuery.isLoading;
 
-      if (selectId) {
-        setAddressId(selectId);
-      } else if (addrs.length > 0) {
-        const defaultAddr =
-          addrs.find((addr: CheckoutAddress) => addr.isDefault) || addrs[0];
-        setAddressId(defaultAddr.id);
-      } else {
-        setAddressId(null);
-      }
+  const fetchAddresses = async (selectId?: string, moveNext = false) => {
+    const result = await queryClient.fetchQuery({
+      queryKey: queryKeys.addresses,
+      queryFn: async () => {
+        const res = await axios.get("/address");
+        return (res.data.addresses || []) as CheckoutAddress[];
+      },
+    });
 
-      if (moveNext) setStep(1);
-    } catch {
-      setAddresses([]);
+    if (selectId) {
+      setAddressId(selectId);
+    } else if (result.length > 0) {
+      const defaultAddr =
+        result.find((addr: CheckoutAddress) => addr.isDefault) || result[0];
+      setAddressId(defaultAddr.id);
+    } else {
       setAddressId(null);
-    } finally {
-      setAddressLoading(false);
     }
+
+    if (moveNext) setStep(1);
   };
-
-  useEffect(() => {
-    const fetchCart = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const res = await axios.get("/cart");
-        setCartItems(res.data.cart || []);
-      } catch {
-        setError("Failed to load cart items");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCart();
-  }, []);
-
-  useEffect(() => {
-    const loadAddresses = async () => {
-      await fetchAddresses();
-    };
-
-    void loadAddresses();
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -279,7 +267,10 @@ export function CheckoutPageView() {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const savings = hasItems ? Math.max(0, subtotal * 0.05) : 0;
 
-  const selectedAddress = addresses.find((addr) => addr.id === addressId);
+  const defaultAddress =
+    addresses.find((addr: CheckoutAddress) => addr.isDefault) || addresses[0];
+  const selectedAddressId = addressId || defaultAddress?.id || null;
+  const selectedAddress = addresses.find((addr) => addr.id === selectedAddressId);
 
   const notify = (
     message: string,
@@ -346,7 +337,7 @@ export function CheckoutPageView() {
       | { method: "cod" }
   ) => {
     const finalOrderRes = await axios.post("/order", {
-      addressId,
+      addressId: selectedAddressId,
       deliveryMethod,
       giftWrap,
       paymentMethod:
@@ -368,6 +359,9 @@ export function CheckoutPageView() {
 
     setOrderDetails(finalOrderData.order || {});
     setShowSuccessModal(true);
+    queryClient.setQueryData(queryKeys.cart.items, []);
+    queryClient.setQueryData(queryKeys.cart.count, 0);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.orders });
     notify(
       finalOrderData.order?.paymentStatus === "PAID"
         ? "Order placed successfully. Payment is marked as paid."
@@ -385,7 +379,7 @@ export function CheckoutPageView() {
   };
 
   const handlePlaceOrder = async () => {
-    if (!addressId) {
+    if (!selectedAddressId) {
       notify("Please select a delivery address before placing the order.", "warning");
       return;
     }
@@ -592,7 +586,7 @@ export function CheckoutPageView() {
 
       <div className="checkout-stepper">
         {[
-          { label: "Address", icon: MapPin, done: Boolean(addressId) },
+          { label: "Address", icon: MapPin, done: Boolean(selectedAddressId) },
           { label: "Delivery", icon: Truck, done: true },
           { label: "Payment", icon: CreditCard, done: step > 1 },
         ].map((item, idx) => {
@@ -658,14 +652,14 @@ export function CheckoutPageView() {
                         <label
                           key={addr.id}
                           className={`checkout-address-card ${
-                            addressId === addr.id ? "is-active" : ""
+                            selectedAddressId === addr.id ? "is-active" : ""
                           }`}
                         >
                           <input
                             type="radio"
                             name="address"
                             value={addr.id}
-                            checked={addressId === addr.id}
+                            checked={selectedAddressId === addr.id}
                             onChange={() => setAddressId(addr.id)}
                           />
 
@@ -693,9 +687,9 @@ export function CheckoutPageView() {
                     <Button
                       type="button"
                       className="checkout-primary-action"
-                      disabled={!addressId}
+                      disabled={!selectedAddressId}
                       onClick={() => {
-                        if (addressId) setStep(1);
+                        if (selectedAddressId) setStep(1);
                       }}
                     >
                       Deliver to this address

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DayPicker, type DateRange } from "react-day-picker";
 import { Download, Eye, ShoppingBag } from "lucide-react";
 import type { AdminOrder, OrderStatus } from "@/components/admin/types";
@@ -9,6 +10,7 @@ import { formatCurrency, formatDateInput, formatShortDate, orderStatusClass } fr
 import { SkeletonTable } from "./ui/skeleton-table";
 import { EmptyState } from "./ui/empty-state";
 import { Pagination } from "./ui/pagination";
+import { queryKeys } from "@/lib/query-keys";
 
 const statuses: Array<{ label: string; value: "" | OrderStatus }> = [
   { label: "All", value: "" },
@@ -26,15 +28,12 @@ function paymentStatusLabel(status?: string) {
 }
 
 export function OrdersListPage() {
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [status, setStatus] = useState<"" | OrderStatus>("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<DateRange | undefined>();
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const from = formatDateInput(range?.from);
   const to = formatDateInput(range?.to);
@@ -47,9 +46,18 @@ export function OrdersListPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  useEffect(() => {
-    async function loadOrders() {
-      setLoading(true);
+  const queryParams = {
+    status,
+    search,
+    from,
+    to,
+    page,
+    limit: pageSize,
+  };
+
+  const ordersQuery = useQuery({
+    queryKey: queryKeys.admin.orders(queryParams),
+    queryFn: async () => {
       const params = new URLSearchParams({
         status,
         search,
@@ -60,13 +68,17 @@ export function OrdersListPage() {
       });
       const response = await fetch(`/api/admin/orders?${params.toString()}`);
       const data = await response.json();
-      setOrders(data.orders ?? []);
-      setTotal(data.total ?? 0);
-      setLoading(false);
-    }
+      return {
+        orders: (data.orders ?? []) as AdminOrder[],
+        total: Number(data.total ?? 0),
+      };
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-    loadOrders();
-  }, [from, page, search, status, to]);
+  const orders = ordersQuery.data?.orders ?? [];
+  const total = ordersQuery.data?.total ?? 0;
+  const loading = ordersQuery.isLoading || ordersQuery.isFetching;
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 

@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowRight,
@@ -17,10 +18,11 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import axios from "axios";
+import api from "@/lib/axios";
 
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/components/cart/cart-provider";
+import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { CtaButton } from "@/components/home/cta-button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -168,30 +170,47 @@ function CartLoadingSkeleton() {
 
 export default function CartPageView() {
   const { refreshCart } = useCart();
-  const [cartItems, setCartItems] = useState<CartApiItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const queryClient = useQueryClient();
 
-  const fetchCart = useCallback(async () => {
-    try {
+  const cartQuery = useQuery({
+    queryKey: queryKeys.cart.items,
+    queryFn: async () => {
+      const res = await api.get("/cart");
+      return (res.data.cart || []) as CartApiItem[];
+    },
+    throwOnError: false,
+  });
+
+  const cartItems = Array.isArray(cartQuery.data) ? cartQuery.data : [];
+
+  const updateCartMutation = useMutation({
+    mutationFn: async ({
+      cartItemId,
+      quantity,
+    }: {
+      cartItemId: string;
+      quantity: number;
+    }) => {
+      await api.patch("/cart", {
+        cartItemId,
+        quantity,
+      });
+    },
+    onMutate: () => {
       setError("");
-      const res = await axios.get("/api/cart");
-      setCartItems(res.data.cart || []);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Failed to load cart"));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const loadCart = async () => {
-      await fetchCart();
-    };
-
-    void loadCart();
-  }, [fetchCart]);
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.cart.items }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.cart.count }),
+      ]);
+      await refreshCart();
+    },
+    onError: (err: unknown) => {
+      setError(getErrorMessage(err, "Failed to update cart"));
+    },
+  });
 
   const items = useMemo(() => {
     return cartItems.map((cartItem) => {
@@ -230,25 +249,10 @@ export default function CartPageView() {
     : 0;
 
   const updateQuantity = async (cartItemId: string, quantity: number) => {
-    try {
-      setUpdatingId(cartItemId);
-      setError("");
-
-      await axios.patch("/api/cart", {
-        cartItemId,
-        quantity,
-      });
-
-      await fetchCart();
-      await refreshCart();
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Failed to update cart"));
-    } finally {
-      setUpdatingId(null);
-    }
+    updateCartMutation.mutate({ cartItemId, quantity });
   };
 
-  if (loading) {
+  if (cartQuery.isLoading) {
     return <CartLoadingSkeleton />;
   }
 
@@ -368,7 +372,10 @@ export default function CartPageView() {
                           type="button"
                           variant="ghost"
                           size="icon-sm"
-                          disabled={updatingId === item.id}
+                          disabled={
+                            updateCartMutation.isPending &&
+                            updateCartMutation.variables?.cartItemId === item.id
+                          }
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
                           aria-label={
                             item.quantity === 1
@@ -384,7 +391,8 @@ export default function CartPageView() {
                         </Button>
 
                         <span>
-                          {updatingId === item.id ? (
+                          {updateCartMutation.isPending &&
+                          updateCartMutation.variables?.cartItemId === item.id ? (
                             <Loader2 className="mx-auto animate-spin" size={18} />
                           ) : (
                             item.quantity
@@ -396,7 +404,8 @@ export default function CartPageView() {
                           variant="ghost"
                           size="icon-sm"
                           disabled={
-                            updatingId === item.id ||
+                            (updateCartMutation.isPending &&
+                              updateCartMutation.variables?.cartItemId === item.id) ||
                             item.quantity >= item.maxQuantity
                           }
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}

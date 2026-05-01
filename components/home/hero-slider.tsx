@@ -2,13 +2,17 @@
 
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { CtaButton } from "@/components/home/cta-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+ 
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+ 
 type SliderProduct = {
   id: string;
   name: string;
@@ -19,35 +23,20 @@ type SliderProduct = {
 
 export function HeroSlider() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [products, setProducts] = useState<SliderProduct[]>([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const { data: products = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.product.random,
+    queryFn: async () => {
+      const res = await fetch("/api/product/random");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? (data as SliderProduct[]) : [];
+    },
+  });
 
-  useEffect(() => {
-    let ignore = false;
-
-    async function fetchProducts() {
-      try {
-        const res = await fetch("/api/product/random");
-        const data = await res.json();
-
-        if (!ignore) {
-          setProducts(Array.isArray(data) ? data : []);
-        }
-      } catch {
-        if (!ignore) setProducts([]);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    }
-
-    void fetchProducts();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const activeSlideIndex =
+    products.length === 0 ? 0 : Math.min(activeIndex, products.length - 1);
 
   const goToPrevious = () => {
     if (products.length <= 1) return;
@@ -66,17 +55,18 @@ export function HeroSlider() {
   return (
     <section className="hero-shell" id="slider">
       <div className="hero-copy">
-        {products[activeIndex] ? (
+        {products[activeSlideIndex] ? (
           <>
             <p className="eyebrow">Featured Product</p>
-            <h2>{products[activeIndex].name}</h2>
-            <p>{products[activeIndex].description || "No description available."}</p>
+            <h2>{products[activeSlideIndex].name}</h2>
+            <p>{products[activeSlideIndex].description || "No description available."}</p>
             <div className="hero-actions">
               <CtaButton asChild>
                 <Link className="bg-white" href='/products'>View All Products</Link>
               </CtaButton>
               <CtaButton tone="light" asChild>
-                <Link href={`/products/${products[activeIndex].slug}`}>View Details</Link>
+ 
+                <Link href={`/products/${products[activeSlideIndex].slug}`}>View Details</Link>
               </CtaButton>
             </div>
           </>
@@ -98,7 +88,7 @@ export function HeroSlider() {
         <div className="slider" aria-label="Featured clothing banners">
           <div
             className="slider-track"
-            style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+            style={{ transform: `translateX(-${activeSlideIndex * 100}%)` }}
           >
             {products.length === 0 && loading ? (
               <div className="slide-link">
@@ -112,19 +102,7 @@ export function HeroSlider() {
                 key={product.id}
                 className="slide-link cursor-pointer"
                 aria-label={`${product.name} - open product`}
-                onClick={async () => {
-                  try {
-                    const res = await fetch(`/api/product/slug/${product.slug}`);
-                    const data = await res.json();
-                    if (data && data.success !== false) {
-                      router.push(`/products/${product.slug}`);
-                    } else {
-                      alert("Product not found or unavailable.");
-                    }
-                  } catch {
-                    alert("Error loading product details.");
-                  }
-                }}
+                onClick={() => router.push(`/products/${product.slug}`)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => {
@@ -177,10 +155,10 @@ export function HeroSlider() {
               <button
                 key={product.id}
                 type="button"
-                className={index === activeIndex ? "slider-dot is-active" : "slider-dot"}
+                className={index === activeSlideIndex ? "slider-dot is-active" : "slider-dot"}
                 onClick={() => setActiveIndex(index)}
                 aria-label={`Go to slide ${index + 1}`}
-                aria-pressed={index === activeIndex}
+                aria-pressed={index === activeSlideIndex}
               />
             ))}
           </div>

@@ -1,12 +1,14 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import axios from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
+
 import ProductCard from "@/components/home/product-card";
-import { ProductItem } from "@/components/home/home-data";
 import { SectionHeading } from "@/components/home/section-heading";
+import type { ProductItem } from "@/components/home/home-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import axios from "@/lib/axios";
-import { useEffect, useState } from "react";
 
 function ProductCardSkeleton() {
   return (
@@ -31,35 +33,25 @@ function ProductCardSkeleton() {
   );
 }
 
+const fetchFeaturedProducts = async () => {
+  const res = await axios.get("/product");
+
+  if (!res.data?.success) {
+    throw new Error("Failed to fetch products");
+  }
+
+  return res.data.data as ProductItem[];
+};
+
 export function ProductsSection() {
-  const [featuredProducts, setFeaturedProducts] = useState<ProductItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let ignore = false;
-
-    const fetchFeaturedProducts = async () => {
-      try {
-        const response = await axios.get("/product");
-
-        if (!ignore && response?.data?.success) {
-          setFeaturedProducts(response.data.data || []);
-        }
-      } catch (err) {
-        console.error("Error fetching products:", err);
-        if (!ignore) setError("Failed to load products");
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-
-    void fetchFeaturedProducts();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const {
+    data: featuredProducts = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: queryKeys.featuredProducts,
+    queryFn: fetchFeaturedProducts,
+  });
 
   return (
     <section className="section-block" id="products">
@@ -70,19 +62,19 @@ export function ProductsSection() {
         split
       />
 
-      {loading && (
-        <div className="product-grid" aria-busy="true" aria-label="Loading featured products">
+      {isLoading && (
+        <div className="product-grid">
           {Array.from({ length: 8 }).map((_, index) => (
             <ProductCardSkeleton key={index} />
           ))}
         </div>
       )}
 
-      {error && <p className="text-red-500">{error}</p>}
+      {error && <p className="text-red-500">Failed to load products</p>}
 
-      {!loading && !error && (
+      {!isLoading && !error && (
         <div className="product-grid">
-          {featuredProducts.length > 0 ? (
+          {featuredProducts?.length > 0 ? (
             featuredProducts.map((product) => (
               <ProductCard key={product.slug} product={product} />
             ))

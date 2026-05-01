@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import type { AdminOrder, OrderStatus } from "@/components/admin/types";
 import { formatCurrency, formatShortDate, orderStatusClass } from "@/components/admin/types";
+import { queryKeys } from "@/lib/query-keys";
 
 const timelineSteps: Array<{ label: string; status: Exclude<OrderStatus, "CANCELLED"> }> = [
   { label: "Placed", status: "PENDING" },
@@ -31,80 +33,82 @@ function paymentStatusLabel(status?: string) {
 }
 
 export function OrderDetailPage({ orderId }: { orderId: string }) {
-  const [order, setOrder] = useState<AdminOrder | null>(null);
-  const [validNextStatuses, setValidNextStatuses] = useState<OrderStatus[]>([]);
+  const queryClient = useQueryClient();
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | "">("");
   const [note, setNote] = useState("");
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isSavingNote, setIsSavingNote] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
+  const orderQuery = useQuery({
+    queryKey: queryKeys.admin.order(orderId),
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/orders/${orderId}`);
+      if (!response.ok) {
+        throw new Error("Order not found.");
+      }
+      const data = await response.json();
+      setSelectedStatus("");
+      setNote(data.order.adminNote ?? "");
+      return {
+        order: data.order as AdminOrder,
+        validNextStatuses: (data.validNextStatuses ?? []) as OrderStatus[],
+      };
+    },
+  });
 
-    fetch(`/api/admin/orders/${orderId}`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Order not found.");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (!isMounted) return;
-        setOrder(data.order);
-        setValidNextStatuses(data.validNextStatuses ?? []);
-        setSelectedStatus("");
-        setNote(data.order.adminNote ?? "");
-      })
-      .catch((error) => {
-        if (isMounted) {
-          toast.error(error instanceof Error ? error.message : "Order not found.");
-        }
+  const order = orderQuery.data?.order ?? null;
+  const validNextStatuses = orderQuery.data?.validNextStatuses ?? [];
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async (status: OrderStatus) => {
+      const response = await fetch(`/api/admin/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
       });
 
-    return () => {
-      isMounted = false;
-    };
-  }, [orderId]);
+      if (!response.ok) throw new Error("Unable to update order status.");
+      const data = await response.json();
+      return data.order as AdminOrder;
+    },
+    onSuccess: (updatedOrder) => {
+      queryClient.setQueryData(queryKeys.admin.order(orderId), {
+        order: updatedOrder,
+        validNextStatuses: nextStatuses(updatedOrder.status),
+      });
+      setSelectedStatus("");
+      toast.success("Order status updated.");
+    },
+    onError: () => {
+      toast.error("Unable to update order status.");
+    },
+  });
+
+  const saveNoteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/admin/orders/${orderId}/note`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+
+      if (!response.ok) throw new Error("Unable to save note.");
+    },
+    onSuccess: () => {
+      toast.success("Internal note saved.");
+    },
+    onError: () => {
+      toast.error("Unable to save note.");
+    },
+  });
 
   const completedIndex = useMemo(() => (order ? stepIndexByStatus[order.status] : -1), [order]);
 
   async function updateStatus() {
     if (!selectedStatus) return;
-    setIsUpdating(true);
-    const response = await fetch(`/api/admin/orders/${orderId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: selectedStatus }),
-    });
-    setIsUpdating(false);
-
-    if (!response.ok) {
-      toast.error("Unable to update order status.");
-      return;
-    }
-
-    const data = await response.json();
-    setOrder(data.order);
-    setValidNextStatuses(data.order ? nextStatuses(data.order.status) : []);
-    setSelectedStatus("");
-    toast.success("Order status updated.");
+    updateStatusMutation.mutate(selectedStatus);
   }
 
   async function saveNote() {
-    setIsSavingNote(true);
-    const response = await fetch(`/api/admin/orders/${orderId}/note`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ note }),
-    });
-    setIsSavingNote(false);
-
-    if (!response.ok) {
-      toast.error("Unable to save note.");
-      return;
-    }
-
-    toast.success("Internal note saved.");
+    saveNoteMutation.mutate();
   }
 
   if (!order) {
@@ -273,11 +277,11 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
               </select>
               <button
                 type="button"
-                disabled={!selectedStatus || isUpdating}
+                disabled={!selectedStatus || updateStatusMutation.isPending}
                 onClick={updateStatus}
                 className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isUpdating ? "Updating..." : "Update Status"}
+                {updateStatusMutation.isPending ? "Updating..." : "Update Status"}
               </button>
             </div>
           ) : (
@@ -288,7 +292,7 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
         <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-slate-950">Internal Notes</h2>
-            {isSavingNote ? <span className="text-xs font-medium text-slate-500">Saving...</span> : null}
+            {saveNoteMutation.isPending ? <span className="text-xs font-medium text-slate-500">Saving...</span> : null}
           </div>
           <textarea
             value={note}

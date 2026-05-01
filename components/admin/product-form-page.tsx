@@ -3,8 +3,9 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BadgeIndianRupee, Boxes, GripVertical, Hash, Package, Plus, Save, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -12,6 +13,7 @@ import type { AdminCategory, AdminProduct } from "@/components/admin/types";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { queryKeys } from "@/lib/query-keys";
 
 type ProductFormPageProps = {
   productId?: string;
@@ -126,8 +128,8 @@ function SortableImageRow({
 export function ProductFormPage({ productId }: ProductFormPageProps) {
   const router = useRouter();
   const isEditing = Boolean(productId);
-  const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const [formHydratedFor, setFormHydratedFor] = useState<string | null>(null);
 
   const {
     register,
@@ -136,7 +138,7 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<ProductFormInput, any, ProductFormValues>({
+  } = useForm<ProductFormInput, unknown, ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       name: "",
@@ -164,43 +166,70 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
   const images = watch("images");
   const variants = watch("variants");
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const categoriesResponse = await fetch("/api/admin/categories");
-        const categoriesData = await categoriesResponse.json();
-        setCategories(categoriesData.categories ?? []);
-        const defaultCatId = categoriesData.categories?.[0]?.id || "";
-        
-        if (!productId) {
-          setValue("categoryId", defaultCatId);
-          setIsLoading(false);
-          return;
-        }
+  const productFormQuery = useQuery({
+    queryKey: queryKeys.admin.productForm(productId),
+    queryFn: async () => {
+      const categoriesResponse = await fetch("/api/admin/categories");
+      if (!categoriesResponse.ok) throw new Error("Error loading product data.");
+      const categoriesData = await categoriesResponse.json();
+      const categories = (categoriesData.categories ?? []) as AdminCategory[];
 
-        const productResponse = await fetch(`/api/admin/products/${productId}`);
-        if (!productResponse.ok) {
-          toast.error("Product not found.");
-          router.push("/admin/products");
-          return;
-        }
-        const data = (await productResponse.json()) as { product: AdminProduct };
-        const product = data.product;
-        setValue("name", product.name);
-        setValue("description", product.description || "");
-        setValue("categoryId", product.categoryId);
-        setValue("isActive", product.isActive);
-        setValue("images", product.images.map(img => ({ ...img })));
-        setValue("variants", product.variants.map(variant => ({ ...variant, skuError: undefined })));
-      } catch (err) {
-         toast.error("Error loading product data.");
-      } finally {
-        setIsLoading(false);
+      if (!productId) {
+        return { categories, product: null };
       }
+
+      const productResponse = await fetch(`/api/admin/products/${productId}`);
+      if (!productResponse.ok) {
+        throw new Error("Product not found.");
+      }
+
+      const data = (await productResponse.json()) as { product: AdminProduct };
+      return { categories, product: data.product };
+    },
+  });
+
+  const categories = productFormQuery.data?.categories ?? [];
+  const product = productFormQuery.data?.product ?? null;
+  const isLoading = productFormQuery.isLoading;
+
+  useEffect(() => {
+    if (!productFormQuery.data) return;
+
+    const hydrateKey = productId ?? "new";
+    if (formHydratedFor === hydrateKey) return;
+
+    const defaultCatId = productFormQuery.data.categories?.[0]?.id || "";
+
+    if (!productId) {
+      setValue("categoryId", defaultCatId);
+      setFormHydratedFor(hydrateKey);
+      return;
     }
 
-    load();
-  }, [productId, router, setValue]);
+    if (!product) return;
+
+    setValue("name", product.name);
+    setValue("description", product.description || "");
+    setValue("categoryId", product.categoryId);
+    setValue("isActive", product.isActive);
+    setValue("images", product.images.map((img) => ({ ...img })));
+    setValue(
+      "variants",
+      product.variants.map((variant) => ({ ...variant, skuError: undefined }))
+    );
+    setFormHydratedFor(hydrateKey);
+  }, [formHydratedFor, product, productFormQuery.data, productId, setValue]);
+
+  useEffect(() => {
+    if (productFormQuery.error) {
+      toast.error(
+        productFormQuery.error instanceof Error
+          ? productFormQuery.error.message
+          : "Error loading product data."
+      );
+      if (productId) router.push("/admin/products");
+    }
+  }, [productFormQuery.error, productId, router]);
 
   function handleImageChange(index: number, url: string) {
     updateImage(index, { ...images[index], url });
@@ -222,6 +251,67 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
     }, 0);
   }
 
+  const validateSkuMutation = useMutation({
+    mutationFn: async ({
+      sku,
+      excludeVariantId,
+    }: {
+      sku: string;
+      excludeVariantId: string;
+    }) => {
+      const params = new URLSearchParams({ sku, excludeVariantId });
+      const response = await fetch(`/api/admin/products/sku?${params.toString()}`);
+      if (!response.ok) throw new Error("SKU validation failed.");
+      return response.json() as Promise<{ unique?: boolean }>;
+    },
+  });
+
+  const saveProductMutation = useMutation({
+    mutationFn: async (data: ProductFormValues) => {
+      const payload = {
+        name: data.name,
+        description: data.description,
+        categoryId: data.categoryId,
+        isActive: data.isActive,
+        images: data.images.map((image, index) => ({
+          id: image.id.startsWith("new_") ? undefined : image.id,
+          url: image.url,
+          isPrimary: image.isPrimary,
+          sortOrder: index,
+        })),
+        variants: data.variants.map((variant) => ({
+          id: variant.id.startsWith("new_") ? undefined : variant.id,
+          name: variant.name,
+          price: Number(variant.price),
+          stock: Number(variant.stock),
+          sku: variant.sku,
+        })),
+      };
+
+      const response = await fetch(
+        isEditing ? `/api/admin/products/${productId}` : "/api/admin/products",
+        {
+          method: isEditing ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Unable to save product.");
+      }
+    },
+    onSuccess: async () => {
+      toast.success("Product saved.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
+      router.push("/admin/products");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Network error");
+    },
+  });
+
   async function validateSku(index: number) {
     const variant = variants[index];
     if (!variant.sku.trim()) {
@@ -239,11 +329,12 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
     }
 
     try {
-      const params = new URLSearchParams({ sku: variant.sku, excludeVariantId: variant.id });
-      const response = await fetch(`/api/admin/products/sku?${params.toString()}`);
-      const data = await response.json();
+      const data = await validateSkuMutation.mutateAsync({
+        sku: variant.sku,
+        excludeVariantId: variant.id,
+      });
       updateVariant(index, { ...variant, skuError: data.unique ? undefined : "SKU already exists." });
-    } catch(e) {
+    } catch {
       // ignore
     }
   }
@@ -270,44 +361,7 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
       return;
     }
 
-    const payload = {
-      name: data.name,
-      description: data.description,
-      categoryId: data.categoryId,
-      isActive: data.isActive,
-      images: data.images.map((image, index) => ({
-        id: image.id.startsWith("new_") ? undefined : image.id,
-        url: image.url,
-        isPrimary: image.isPrimary,
-        sortOrder: index,
-      })),
-      variants: data.variants.map((variant) => ({
-        id: variant.id.startsWith("new_") ? undefined : variant.id,
-        name: variant.name,
-        price: Number(variant.price),
-        stock: Number(variant.stock),
-        sku: variant.sku,
-      })),
-    };
-
-    try {
-      const response = await fetch(isEditing ? `/api/admin/products/${productId}` : "/api/admin/products", {
-        method: isEditing ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        toast.error(err.error || "Unable to save product.");
-        return;
-      }
-
-      toast.success("Product saved.");
-      router.push("/admin/products");
-    } catch(e) {
-      toast.error("Network error");
-    }
+    saveProductMutation.mutate(data);
   }
 
   if (isLoading) return null;
@@ -387,9 +441,9 @@ export function ProductFormPage({ productId }: ProductFormPageProps) {
           </button>
         </div>
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={images.map((i: any) => i.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={images.map((image) => image.id)} strategy={verticalListSortingStrategy}>
             <div className="grid gap-3">
-              {images.map((image: any, index: number) => (
+              {images.map((image, index) => (
                 <SortableImageRow
                   key={image.id}
                   image={image}

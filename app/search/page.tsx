@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -26,6 +27,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { searchProducts } from "@/services/search.service";
 import { ProductItem } from "@/components/home/home-data";
+import { queryKeys } from "@/lib/query-keys";
 
 type SearchProductImage = {
   url?: string | null;
@@ -119,56 +121,37 @@ function normalizeProduct(product: SearchProduct): ProductItem {
 
 function SearchResults() {
   const searchParams = useSearchParams();
-  const initialQuery = searchParams.get("q") || "";
+  const initialQuery = searchParams?.get("q") || "";
   const [searchInput, setSearchInput] = useState(initialQuery);
   const [category, setCategory] = useState("");
   const [priceRange, setPriceRange] = useState("");
   const [selectedRating, setSelectedRating] = useState(0);
-  const [products, setProducts] = useState<ProductItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const debouncedQuery = useDebouncedValue(searchInput.trim(), 350);
   const debouncedCategory = useDebouncedValue(category, 250);
   const debouncedPriceRange = useDebouncedValue(priceRange, 250);
   const debouncedRating = useDebouncedValue(selectedRating, 250);
+  const searchQueryParams = {
+    q: debouncedQuery,
+    category: debouncedCategory,
+    price: debouncedPriceRange,
+    rating: debouncedRating,
+  };
 
   const activeFilterCount = [debouncedCategory, debouncedPriceRange, debouncedRating ? "rating" : ""].filter(Boolean).length;
 
-  useEffect(() => {
-    let ignore = false;
+  const productsQuery = useQuery({
+    queryKey: queryKeys.search(searchQueryParams),
+    queryFn: async () => {
+      const result = await searchProducts(searchQueryParams);
+      return (result as SearchProduct[]).map(normalizeProduct);
+    },
+    placeholderData: [],
+  });
 
-    async function fetchProducts() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await searchProducts({
-          q: debouncedQuery,
-          category: debouncedCategory,
-          price: debouncedPriceRange,
-          rating: debouncedRating,
-        });
-
-        if (!ignore) {
-          setProducts((result as SearchProduct[]).map(normalizeProduct));
-        }
-      } catch {
-        if (!ignore) {
-          setProducts([]);
-          setError("Unable to load search results.");
-        }
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    }
-
-    void fetchProducts();
-
-    return () => {
-      ignore = true;
-    };
-  }, [debouncedQuery, debouncedCategory, debouncedPriceRange, debouncedRating]);
+  const products = productsQuery.data || [];
+  const loading = productsQuery.isLoading || productsQuery.isFetching;
+  const error = productsQuery.isError ? "Unable to load search results." : null;
 
   const resultCopy = useMemo(() => {
     if (loading) return "Searching the catalogue...";

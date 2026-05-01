@@ -9,8 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CtaButton } from "@/components/home/cta-button";
 import { ProductItem } from "@/components/home/home-data";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import api from "@/lib/axios";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
 import { useToast } from "@/components/ui/toast-context";
 
@@ -42,50 +44,53 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-
-
   const { showToast } = useToast();
-  const [wishlisted, setWishlisted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const { refreshWishlistCount } = useWishlist();
+  const queryClient = useQueryClient();
   const [loadedImageUrl, setLoadedImageUrl] = useState<string | null>(null);
+  const productId = product.id || product.slug;
 
   const imageUrl = getImageUrl(product);
   const imageAlt = getImageAlt(product);
   const imageLoaded = loadedImageUrl === imageUrl;
 
-  useEffect(() => {
-    let ignore = false;
-    async function fetchWishlisted() {
-      try {
-        const res = await api.get(`/wishlist?productId=${product.id || product.slug}`);
-        if (!ignore && res.data && typeof res.data.wishlisted === "boolean") {
-          setWishlisted(res.data.wishlisted);
-        }
-      } catch {}
-    }
-    if (product.id || product.slug) fetchWishlisted();
-    return () => { ignore = true; };
-  }, [product.id, product.slug]);
+  const wishlistStateQuery = useQuery({
+    queryKey: queryKeys.product.wishlistState(productId),
+    queryFn: async () => {
+      const res = await api.get(`/wishlist?productId=${productId}`);
+      return Boolean(res.data?.wishlisted);
+    },
+    enabled: Boolean(productId),
+    placeholderData: false,
+  });
+
+  const wishlistMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.patch("/wishlist", { productId });
+      return res.data as { wishlisted?: boolean; message?: string };
+    },
+    onSuccess: (data) => {
+      const nextWishlisted = Boolean(data.wishlisted);
+      queryClient.setQueryData(
+        queryKeys.product.wishlistState(productId),
+        nextWishlisted
+      );
+      refreshWishlistCount();
+      showToast(
+        data.message ||
+          (nextWishlisted ? "Added to wishlist!" : "Removed from wishlist"),
+        nextWishlisted ? "success" : "info"
+      );
+    },
+    onError: (err: unknown) => {
+      showToast(getErrorMessage(err, "Failed to update wishlist"), "error");
+    },
+  });
 
   const handleWishlistClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    setLoading(true);
-    try {
-      const res = await api.patch("/wishlist", { productId: product.id || product.slug });
-      if (res.data && typeof res.data.wishlisted === "boolean") {
-        setWishlisted(res.data.wishlisted);
-        refreshWishlistCount();
-        showToast(
-          res.data.message || (res.data.wishlisted ? "Added to wishlist!" : "Removed from wishlist"),
-          res.data.wishlisted ? "success" : "info"
-        );
-      }
-    } catch (err: unknown) {
-      showToast(getErrorMessage(err, "Failed to update wishlist"), "error");
-    } finally {
-      setLoading(false);
-    }
+    wishlistMutation.mutate();
   };
 
   function getImageUrl(product: ProductItem): string {
@@ -117,13 +122,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           type="button"
           variant="outline"
           size="icon-sm"
-          className={`product-wishlist-button${wishlisted ? " is-active" : ""}`}
-          aria-label={`${wishlisted ? "Remove" : "Add"} ${product.name} ${wishlisted ? "from" : "to"} wishlist`}
-          aria-pressed={wishlisted}
+          className={`product-wishlist-button${wishlistStateQuery.data ? " is-active" : ""}`}
+          aria-label={`${wishlistStateQuery.data ? "Remove" : "Add"} ${product.name} ${wishlistStateQuery.data ? "from" : "to"} wishlist`}
+          aria-pressed={wishlistStateQuery.data}
           onClick={handleWishlistClick}
-          disabled={loading}
+          disabled={wishlistMutation.isPending}
         >
-          <Heart className={`size-4${wishlisted ? " fill-current" : ""}`} />
+          <Heart className={`size-4${wishlistStateQuery.data ? " fill-current" : ""}`} />
         </Button>
       </div>
       <Link href={`/products/${product.slug}`} className="product-card-link">

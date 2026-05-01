@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState, useEffect, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -22,7 +23,8 @@ import {
   Truck,
   UserRound,
 } from "lucide-react";
-import axios from "axios";
+import api from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { useSession } from "next-auth/react";
 import { type UserProfile } from "@/components/auth/auth-provider";
 import { useForm } from "react-hook-form";
@@ -62,11 +64,10 @@ function getInitials(name: string) {
 export function ProfilePageView() {
   const { data: session, status } = useSession();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const user = session?.user;
-  const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const initials = useMemo(() => getInitials(user?.name ?? profileData?.name ?? "ASR"), [user?.name, profileData?.name]);
   const {
     register,
     handleSubmit,
@@ -91,44 +92,57 @@ export function ProfilePageView() {
     });
   }, [reset]);
 
-  useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const res = await axios.get("/api/user/profile");
-        setProfileData(res.data);
-        resetProfileForm(res.data);
-      } catch {
-        setProfileData(null);
-      }
-    }
-    if (user) fetchProfile();
-  }, [user, resetProfileForm]);
+  const profileQuery = useQuery({
+    queryKey: queryKeys.profile,
+    queryFn: async () => {
+      const res = await api.get("/user/profile");
+      return res.data as UserProfile;
+    },
+    enabled: Boolean(user),
+  });
 
-  const handleProfileSave = async (values: ProfileFormValues) => {
-    try {
-      await axios.patch("/api/user/profile", {
+  const profileData = profileQuery.data || null;
+  const initials = useMemo(() => getInitials(user?.name ?? profileData?.name ?? "ASR"), [user?.name, profileData?.name]);
+
+  useEffect(() => {
+    if (profileData) resetProfileForm(profileData);
+  }, [profileData, resetProfileForm]);
+
+  const saveProfileMutation = useMutation({
+    mutationFn: async (values: ProfileFormValues) => {
+      await api.patch("/user/profile", {
         ...values,
         phone: values.phone.replace(/\s/g, ""),
       });
 
-      const res = await axios.get("/api/user/profile");
-      setProfileData(res.data);
-      resetProfileForm(res.data);
+      const res = await api.get("/user/profile");
+      return res.data as UserProfile;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.profile, data);
+      resetProfileForm(data);
       setIsEditing(false);
       setLastSavedAt(
         new Intl.DateTimeFormat("en-IN", {
           hour: "2-digit",
           minute: "2-digit",
-        }).format(new Date()),
+        }).format(new Date())
       );
       showToast("Profile changes saved successfully.", "success");
-    } catch (err: unknown) {
+    },
+    onError: (err: unknown) => {
       console.error(err);
       showToast("Unable to save profile changes.", "error");
       setError("root", {
         message: "Failed to update profile. Please try again.",
       });
-    }
+    },
+  });
+
+  const handleProfileSave = async (values: ProfileFormValues) => {
+    try {
+      await saveProfileMutation.mutateAsync(values);
+    } catch {}
   };
 
   const completedFields = profileData

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Edit2, Loader2, Check, X, AlertCircle } from "lucide-react";
 import type { AdminCategory } from "@/components/admin/types";
 import toast from "react-hot-toast";
@@ -9,6 +10,7 @@ import { EmptyState } from "./ui/empty-state";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { queryKeys } from "@/lib/query-keys";
 
 const categorySchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -18,8 +20,7 @@ const categorySchema = z.object({
 type CategoryFormValues = z.infer<typeof categorySchema>;
 
 export function CategoriesListPage() {
-  const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -56,21 +57,95 @@ export function CategoriesListPage() {
     setValue("slug", generateSlug(watchName), { shouldValidate: true });
   }, [watchName]);
 
-  async function loadCategories() {
-    try {
+  const categoriesQuery = useQuery({
+    queryKey: queryKeys.admin.categories,
+    queryFn: async () => {
       const response = await fetch("/api/admin/categories");
+      if (!response.ok) throw new Error("Failed to load categories");
       const data = await response.json();
-      setCategories(data.categories ?? []);
-    } catch (error) {
-      toast.error("Failed to load categories");
-    } finally {
-      setIsLoading(false);
-    }
-  }
+      return (data.categories ?? []) as AdminCategory[];
+    },
+  });
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
+  const categories = categoriesQuery.data ?? [];
+  const isLoading = categoriesQuery.isLoading;
+
+  const invalidateCategories = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.admin.categories });
+  };
+
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: CategoryFormValues) => {
+      const response = await fetch("/api/admin/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to add category");
+      }
+    },
+    onSuccess: () => {
+      toast.success("Category added");
+      reset();
+      invalidateCategories();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Network error");
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({
+      id,
+      name,
+      slug,
+    }: {
+      id: string;
+      name: string;
+      slug: string;
+    }) => {
+      const response = await fetch(`/api/admin/categories/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, slug }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Update failed");
+      }
+    },
+    onSuccess: () => {
+      toast.success("Category updated");
+      invalidateCategories();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Network error");
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/admin/categories/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Delete failed");
+      }
+    },
+    onSuccess: () => {
+      toast.success("Category deleted");
+      invalidateCategories();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Network error");
+    },
+  });
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -79,24 +154,7 @@ export function CategoriesListPage() {
   }, [editingId]);
 
   async function onSubmit(data: CategoryFormValues) {
-    try {
-      const response = await fetch("/api/admin/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (response.ok) {
-        toast.success("Category added");
-        reset();
-        loadCategories();
-      } else {
-        const err = await response.json();
-        toast.error(err.error || "Failed to add category");
-      }
-    } catch (error) {
-      toast.error("Network error");
-    }
+    await createCategoryMutation.mutateAsync(data);
   }
 
   async function handleSaveEdit() {
@@ -111,25 +169,8 @@ export function CategoriesListPage() {
       return;
     }
 
-    try {
-      const response = await fetch(`/api/admin/categories/${editingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editName, slug: editSlug }),
-      });
-
-      if (response.ok) {
-        toast.success("Category updated");
-        loadCategories();
-      } else {
-        const err = await response.json();
-        toast.error(err.error || "Update failed");
-      }
-    } catch (error) {
-      toast.error("Network error");
-    } finally {
-      setEditingId(null);
-    }
+    updateCategoryMutation.mutate({ id: editingId, name: editName, slug: editSlug });
+    setEditingId(null);
   }
 
   async function handleDelete(category: AdminCategory) {
@@ -139,21 +180,7 @@ export function CategoriesListPage() {
 
     if (!confirm(`Are you sure you want to delete "${category.name}"?`)) return;
 
-    try {
-      const response = await fetch(`/api/admin/categories/${category.id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        toast.success("Category deleted");
-        loadCategories();
-      } else {
-        const err = await response.json();
-        toast.error(err.error || "Delete failed");
-      }
-    } catch (error) {
-      toast.error("Network error");
-    }
+    deleteCategoryMutation.mutate(category.id);
   }
 
   const startEditing = (category: AdminCategory) => {
